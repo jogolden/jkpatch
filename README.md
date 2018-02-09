@@ -11,6 +11,7 @@
 - Fake self support
 - Fake pkg support
 - RPC server
+- RPC client in C#
 
 **I still need to push the RPC client and RPC documentation.**
 
