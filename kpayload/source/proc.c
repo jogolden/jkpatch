@@ -38,58 +38,6 @@ struct proc *proc_find_by_pid(int pid) {
 	return NULL;
 }
 
-int hexdump(const void *data, size_t size) {
-
-	unsigned char *d = (unsigned char *)data;
-	size_t consoleSize = 16;
-	char b[consoleSize + 3];
-	size_t i;
-
-	if (data == NULL) {
-		return -1;
-	}
-	b[0] = '|';
-	b[consoleSize + 1] = '|';
-	b[consoleSize + 2] = '\0';
-
-	printf("\n-------HEX DUMP------\n");
-	for (i = 0; i < size; i++)
-	{
-		if ((i % consoleSize) == 0)
-		{
-			if (i != 0) {
-				printf("  %s\n", b);
-			}
-			printf("%016lx ", (unsigned char *)data + i);
-		}
-
-		if (i % consoleSize == 8)
-			printf(" ");
-		printf(" %02x", d[i]);
-
-		if (d[i] >= ' ' && d[i] <= '~')
-			b[i % consoleSize + 1] = d[i];
-
-		else
-			b[i % consoleSize + 1] = '.';
-	}
-
-	while ((i % consoleSize) != 0)
-	{
-
-		if (i % consoleSize == 8)
-			printf("    ");
-
-		else
-			printf("   ");
-		b[i % consoleSize + 1] = '.';
-		i++;
-	}
-
-	printf("  %s\n", b);
-	return 0;
-}
-
 int proc_get_vm_map(struct proc *p, struct proc_vm_map_entry **entries, size_t *num_entries) {
 	uint64_t ents = NULL;
 	size_t num = NULL;
@@ -186,7 +134,7 @@ int proc_rw_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n, i
 	iov.iov_len = size;
 
 	memset(&uio, 0, sizeof(uio));
-	uio.uio_iov = &iov;
+	uio.uio_iov = (uint64_t)&iov;
 	uio.uio_iovcnt = 1;
 	uio.uio_offset = (uint64_t)ptr;
 	uio.uio_resid = (uint64_t)size;

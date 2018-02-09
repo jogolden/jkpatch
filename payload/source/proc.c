@@ -35,7 +35,6 @@ struct proc *proc_find_by_pid(int pid) {
 		}
 	} while ((p = p->p_forw));
 
-error:
 	return NULL;
 }
 
@@ -132,7 +131,7 @@ int proc_rw_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n, i
 	iov.iov_len = size;
 
 	memset(&uio, 0, sizeof(uio));
-	uio.uio_iov = &iov;
+	uio.uio_iov = (uint64_t)&iov;
 	uio.uio_iovcnt = 1;
 	uio.uio_offset = (uint64_t)ptr;
 	uio.uio_resid = (uint64_t)size;
