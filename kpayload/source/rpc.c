@@ -13,26 +13,21 @@ int rpc_send_status(int fd, uint32_t status) {
 }
 
 int rpc_send_data(int fd, uint8_t *data, int length) {
-	// send in RPC_MAX_DATA_LEN chunks
-	int left = length;
-	int offset = 0;
-	int sent = 0;
-	while (1) {
-		if (left > RPC_MAX_DATA_LEN) {
-			sent += net_send(fd, data + offset, RPC_MAX_DATA_LEN);
+	uint32_t left = length;
+	uint32_t offset = 0;
+	uint32_t sent = 0;
 
-			left -= RPC_MAX_DATA_LEN;
-			offset += RPC_MAX_DATA_LEN;
+	while(left > 0) {
+		if(left > RPC_MAX_DATA_LEN) {
+			sent = net_send(fd, data + offset, RPC_MAX_DATA_LEN);
+			offset += sent;
+			left -= sent;
 		} else {
-			sent += net_send(fd, data + offset, left);
-			break;
+			sent = net_send(fd, data + offset, left);
+			offset += sent;
+			left -= sent;
 		}
 	}
-
-	if (sent != length) {
-		return 1;
-	}
-
 	return 0;
 }
 
