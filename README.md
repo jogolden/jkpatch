@@ -31,11 +31,12 @@ void resolve(uint64_t kernbase);
 
 ### Coming Soon
 - Bug fixes for RPC server/client
-- C# library for RPC client (I just need to touch it up!)
-- RPC documentation
-- Better kernel patches
+- Clean up C# library (librpc)
+- Add ability to call routines in processes (up to 6 parameters, i.e. registers only)
+- RPC documentation, write a pdf explaining how to get started
+- Better kernel patches, that wont crash system (i.e. fix debug patches)
 - Hook fatal_trap and print more debug information to UART
-- Add kernel UART text out hook and send text over RPC
+- Add kernel UART text out hook and send text over RPC (maybe)
 - General code clean up and refactoring
 
 
