@@ -28,6 +28,7 @@ int rpc_send_data(int fd, uint8_t *data, int length) {
 			left -= sent;
 		}
 	}
+
 	return 0;
 }
 
@@ -339,7 +340,7 @@ void rpc_handler(void *vfd) {
 			goto error;
 		}
 
-		pause("p", 15);
+		//pause("p", 15);
 	}
 
 error:
