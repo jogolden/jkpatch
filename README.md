@@ -18,7 +18,7 @@
 ### General Notes
 **Only for 4.05 Jailbroken PlayStation 4 consoles!**
 
-The main jkpatch payload utilizes idc's port of CTurt's payload sdk. You can download it [here](https://github.com/idc/ps4-payload-sdk). Change the [Makefile](jkpatch/Makefile) to have `LIBPS4` point to the ps4-payload-sdk directory on your machine. I could have it referenced from the home directory but meh...
+The main jkpatch payload utilizes idc's port of CTurt's payload sdk. You can download it [here](https://github.com/idc/ps4-payload-sdk). Change the [Makefile](payload/Makefile) to have `LIBPS4` point to the ps4-payload-sdk directory on your machine. I could have it referenced from the home directory but meh...
 ```makefile
 # change this to point to your ps4-payload-sdk directory
 LIBPS4	:=	/home/John/PS4-PAYLOAD-SDK/libPS4
@@ -38,6 +38,7 @@ void resolve(uint64_t kernbase);
 - Better kernel patches, that wont crash system (i.e. fix debug patches)
 - Hook fatal_trap and print more debug information to UART
 - Add kernel UART text out hook and send text over RPC (maybe)
+- Add kernel read/write/allocate/free/execute commands
 - General code clean up and refactoring
 
 
