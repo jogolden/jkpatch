@@ -6,7 +6,7 @@
 struct mtx uart_mtx;
 
 void init_uart() {
-	mtx_init(&uart_mtx, "uart", 0, 0);
+	mtx_init(&uart_mtx, "uart", NULL, 0);
 }
 
 int uprintf(const char *fmt, ...) {

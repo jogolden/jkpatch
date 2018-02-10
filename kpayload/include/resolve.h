@@ -15,7 +15,6 @@ const uint8_t *mini_syscore_self_binary;
 struct sbl_key_rbtree_entry **sbl_keymgr_key_rbtree;
 void *fpu_kern_ctx;
 
-/** functions **/
 // freebsd/common
 int (*printf)(const char *fmt, ...);
 int (*vprintf)(const char *fmt, va_list arg);

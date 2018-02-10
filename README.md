@@ -13,7 +13,7 @@
 - RPC server
 - RPC client in C#
 
-**I still need to push the RPC client and RPC documentation.**
+I use the standard fake pkg keys, created by flatz.
 
 ### General Notes
 **Only for 4.05 Jailbroken PlayStation 4 consoles!**
@@ -31,16 +31,11 @@ void resolve(uint64_t kernbase);
 ... as it is called from `crt0.s`. And changing this will produce errors.
 
 ### Coming Soon
-- Bug fixes for RPC server/client
 - Clean up C# library (librpc)
 - Add ability to call routines in processes (up to 6 parameters, i.e. registers only)
 - RPC documentation, write a pdf explaining how to get started
-- Better kernel patches, that wont crash system (i.e. fix debug patches)
-- Hook fatal_trap and print more debug information to UART
-- Add kernel UART text out hook and send text over RPC (maybe)
 - Add kernel read/write/allocate/free/execute commands
 - General code clean up and refactoring
-
 
 Thank you to flatz, idc, zecoxao, hitodama, osdev.org!
 

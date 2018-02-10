@@ -74,7 +74,7 @@ int proc_get_vm_map(struct proc *p, struct proc_vm_map_entry **entries, size_t *
 		info[i].end = entry->end;
 		info[i].offset = entry->offset;
 		info[i].prot = entry->prot & (entry->prot >> 8);
-		memcpy(info[i].name, entry->name, sizeof(entry->name));
+		memcpy(info[i].name, entry->name, sizeof(info[i].name));
 
 		entry = entry->next;
 		if (!entry) {
@@ -100,7 +100,7 @@ int proc_rw_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n, i
 	struct thread *td = curthread();
 	struct iovec iov;
 	struct uio uio;
-	int ret;
+	int ret = 0;
 
 	if (!p) {
 		ret = -1;
@@ -108,8 +108,10 @@ int proc_rw_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n, i
 	}
 
 	if (size == 0) {
-		if (n)
+		if (n) {
 			*n = 0;
+		}
+
 		ret = 0;
 		goto error;
 	}

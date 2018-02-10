@@ -17,8 +17,8 @@ int rpc_send_data(int fd, uint8_t *data, int length) {
 	uint32_t offset = 0;
 	uint32_t sent = 0;
 
-	while(left > 0) {
-		if(left > RPC_MAX_DATA_LEN) {
+	while (left > 0) {
+		if (left > RPC_MAX_DATA_LEN) {
 			sent = net_send(fd, data + offset, RPC_MAX_DATA_LEN);
 			offset += sent;
 			left -= sent;
@@ -32,8 +32,8 @@ int rpc_send_data(int fd, uint8_t *data, int length) {
 }
 
 int rpc_handle_read(int fd, struct rpc_packet *packet) {
+	uint8_t *data = NULL;
 	size_t n = 0;
-	uint8_t *data = 0;
 	int r = 0;
 
 	struct rpc_proc_read *pread = (struct rpc_proc_read *)packet->data;
@@ -74,9 +74,9 @@ error:
 }
 
 int rpc_handle_write(int fd, struct rpc_packet *packet) {
-	int r = 0;
+	uint8_t *data = NULL;
 	size_t n = 0;
-	uint8_t *data = 0;
+	int r = 0;
 
 	struct rpc_proc_read *pwrite = (struct rpc_proc_read *)packet->data;
 
@@ -124,7 +124,6 @@ int rpc_handle_list(int fd, struct rpc_packet *packet) {
 	int r = 0;
 
 	uint64_t kernbase = getkernbase();
-
 	struct proc *p = *(struct proc **)(kernbase + __allproc);
 
 	struct proc *countp = p;
@@ -149,7 +148,7 @@ int rpc_handle_list(int fd, struct rpc_packet *packet) {
 	for (int i = 0; i < count; i++) {
 		struct rpc_proc_list *plist = (struct rpc_proc_list *)(data + (i * RPC_PROC_LIST_SIZE));
 
-		memcpy(plist->name, p->p_comm, 32);
+		memcpy(plist->name, p->p_comm, sizeof(plist->name));
 		plist->pid = p->pid;
 
 		if (!(p = p->p_forw)) {
@@ -194,7 +193,7 @@ int rpc_handle_info(int fd, struct rpc_packet *packet) {
 	}
 
 	// some processes, like daemons do not have any virtual memory mapped
-	if(!count) {
+	if (!count) {
 		rpc_send_status(fd, RPC_INFO_NO_MAP);
 		r = 0;
 		goto error;
@@ -211,7 +210,7 @@ int rpc_handle_info(int fd, struct rpc_packet *packet) {
 	for (int i = 0; i < count; i++) {
 		struct rpc_proc_info2 *info = (struct rpc_proc_info2 *)(data + (i * RPC_PROC_INFO2_SIZE));
 
-		memcpy(info->name, entries[i].name, 32);
+		memcpy(info->name, entries[i].name, sizeof(info->name));
 		info->start = entries[i].start;
 		info->end = entries[i].end;
 		info->offset = entries[i].offset;
@@ -276,21 +275,20 @@ int rpc_cmd_handler(int fd, struct rpc_packet *packet) {
 
 void rpc_handler(void *vfd) {
 	int fd = (uint64_t)vfd;
-	int r = 0;
 	struct rpc_packet packet;
-
+	uint8_t *data = NULL;
 	uint32_t length = 0;
-	uint8_t *data = 0;
+	int r = 0;
 
 	//uprintf("rpc_handler fd %lli", fd);
 
-	// wait to recv packets
 	while (1) {
-		pause("p", 20);
-
+		// wait to recv packets
 		r = net_recv(fd, &packet, RPC_PACKET_SIZE);
+
+		// check if disconnected
 		if (r <= 0) {
-			goto error; // disconnected
+			goto error;
 		}
 
 		// invalid packet
@@ -325,7 +323,7 @@ void rpc_handler(void *vfd) {
 			// set data
 			packet.data = data;
 		} else {
-			packet.data = 0;
+			packet.data = NULL;
 		}
 
 		// handle the packet
@@ -333,13 +331,15 @@ void rpc_handler(void *vfd) {
 
 		if (data) {
 			dealloc(data);
-			data = 0;
+			data = NULL;
 		}
 
 		// check cmd handler error (or end cmd)
 		if (r) {
 			goto error;
 		}
+
+		pause("p", 15);
 	}
 
 error:
@@ -351,8 +351,9 @@ error:
 }
 
 void rpc_server_thread(void *arg) {
-	int fd = -1, nfd = -1;
-	struct sockaddr_in serv_addr;
+	struct sockaddr_in servaddr;
+	int fd = -1;
+	int newfd = -1;
 	int r = 0;
 
 	fd = net_socket(AF_INET, SOCK_STREAM, 0);
@@ -368,12 +369,12 @@ void rpc_server_thread(void *arg) {
 	optval = 1;
 	net_setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (void *)&optval, sizeof(int));
 
-	memset(&serv_addr, 0, sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = INADDR_ANY;
-	serv_addr.sin_port = htons(RPC_PORT);
+	memset(&servaddr, NULL, sizeof(servaddr));
+	servaddr.sin_family = AF_INET;
+	servaddr.sin_addr.s_addr = INADDR_ANY;
+	servaddr.sin_port = htons(RPC_PORT);
 
-	if ((r = net_bind(fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)))) {
+	if ((r = net_bind(fd, (struct sockaddr *)&servaddr, sizeof(servaddr)))) {
 		goto error;
 	}
 
@@ -383,20 +384,20 @@ void rpc_server_thread(void *arg) {
 
 	while (1) {
 		// accept connection
-		nfd = net_accept(fd, 0, 0);
+		newfd = net_accept(fd, NULL, NULL);
 
 		// the socket will most likley inherit such properties below, but to make sure I will set them
 
 		// set it to not generate SIGPIPE
 		int optval = 1;
-		net_setsockopt(nfd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(int));
+		net_setsockopt(newfd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(int));
 
 		// no delay to merge packets
 		optval = 1;
-		net_setsockopt(nfd, IPPROTO_TCP, TCP_NODELAY, (void *)&optval, sizeof(int));
+		net_setsockopt(newfd, IPPROTO_TCP, TCP_NODELAY, (void *)&optval, sizeof(int));
 
 		// add thread to handle connection
-		kthread_add(rpc_handler, (void *)((uint64_t)nfd), 0, 0, 0, 0, "rpchandler");
+		kthread_add(rpc_handler, (void *)((uint64_t)newfd), 0, 0, 0, 0, "rpchandler");
 
 		pause("p", 1000);
 	}

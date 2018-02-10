@@ -15,6 +15,6 @@ $(KTARGET):
 	
 .PHONY: clean
 clean:
-	rm $(TARGET) $(KTARGET)
+	rm -f $(TARGET) $(KTARGET)
 	cd payload && $(MAKE) -s clean
 	cd kpayload && $(MAKE) -s clean

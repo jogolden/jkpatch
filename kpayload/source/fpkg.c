@@ -3,19 +3,8 @@
 
 #include "fpkg.h"
 
-#define MAX_FAKE_KEYS 32
-
-struct fake_key_desc {
-	uint8_t key[0x20];
-	int occupied;
-};
-
 struct fake_key_desc s_fake_keys[MAX_FAKE_KEYS];
-static struct sx s_fake_keys_lock;
-
-const uint8_t s_fake_key_seed[0x10] = {
-	0x46, 0x41, 0x4B, 0x45, 0x46, 0x41, 0x4B, 0x45, 0x46, 0x41, 0x4B, 0x45, 0x46, 0x41, 0x4B, 0x45
-};
+struct sx s_fake_keys_lock;
 
 struct fake_key_desc *get_free_fake_key_slot(void) {
 	struct fake_key_desc *slot = NULL;
@@ -66,7 +55,7 @@ void pfs_gen_crypto_key(uint8_t *ekpfs, uint8_t seed[PFS_SEED_SIZE], unsigned in
 	memset(d, 0, sizeof(d));
 
 	/* an index tells which key we should generate */
-	memcpy(d, &index, 4); // ptr alias rules
+	memcpy(d, &index, sizeof(index)); // ptr alias rules
 	memcpy(d + 4, seed, PFS_SEED_SIZE);
 
 	fpu_kern_enter(td, fpu_kern_ctx, 0);
