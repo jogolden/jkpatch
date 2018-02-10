@@ -13,9 +13,6 @@
 
 // TODO: fix these hacks :/
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
-#define PAGE_SIZE 0x4000
-typedef uint64_t vm_offset_t;
-//struct fpu_kern_ctx;
 
 struct sbl_mapped_page_group;
 

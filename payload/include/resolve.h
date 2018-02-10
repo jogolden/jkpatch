@@ -26,14 +26,6 @@ void (*sx_xunlock)(struct sx *sx);
 int (*fpu_kern_enter)(struct thread *td, void *ctx, unsigned int flags);
 int (*fpu_kern_leave)(struct thread *td, void *ctx);
 
-// virtual memory
-// TODO: define structures for these function's parameters
-void (*vm_map_lock_read)(uint64_t map, const char *b, int i);
-int (*vm_map_lookup_entry)(uint64_t map, uint64_t start, uint64_t *entries);
-void (*vm_map_unlock_read)(uint64_t map, const char *b, int i);
-void (*vmspace_free)(uint64_t vm);
-uint64_t (*vmspace_acquire_ref)(struct proc *a);
-
 void resolve(uint64_t kernbase);
 
 #endif

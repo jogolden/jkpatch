@@ -12,7 +12,7 @@
 // todo: write better c style code
 
 // network
-#define RPC_PORT			733
+#define RPC_PORT			736
 
 // magic
 #define RPC_PACKET_MAGIC	0xBDAABBCC
@@ -37,7 +37,8 @@
 #define RPC_WRITE_ERROR			0x80000003
 #define RPC_LIST_ERROR			0x80000004
 #define RPC_INFO_ERROR			0x80000005
-#define RPC_NO_PROC				0x80000006
+#define RPC_INFO_NO_MAP			0x80000006
+#define RPC_NO_PROC				0x80000007
 
 struct rpc_packet {
 	uint32_t magic;

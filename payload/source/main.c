@@ -3,7 +3,6 @@
 
 #include "jkpatch.h"
 #include "install.h"
-#include "proc.h"
 
 // perfect for putty
 void ascii_art(void *_printf) {
@@ -107,100 +106,6 @@ void scesbl_patches(struct thread *td, uint64_t kernbase) {
 	*(uint8_t *)(kernbase + 0x36057B) = 0;
 }
 
-int patch_shellcore() {
-	uint8_t *text_seg_base = NULL;
-	size_t n;
-
-	struct proc_vm_map_entry *entries = NULL;
-	size_t num_entries;
-
-	int ret = 0;
-
-	// all offsets below are belongs to functions that parses .pkg files
-	uint32_t call_ofs_for__xor__eax_eax__3nop[] = {
-		0x11A0DB, // call sceKernelIsGenuineCEX
-		0x66EA3B, // call sceKernelIsGenuineCEX
-		0x7F554B, // call sceKernelIsGenuineCEX
-		0x11A107, // call nidf_libSceDipsw_0xD21CE9E2F639A83C
-		0x66EA67, // call nidf_libSceDipsw_0xD21CE9E2F639A83C
-		0x7F5577, // call nidf_libSceDipsw_0xD21CE9E2F639A83C
-	};
-
-	struct proc *ssc = proc_find_by_name("SceShellCore");
-
-	if (!ssc) {
-		ret = 1;
-		goto error;
-	}
-
-	if (proc_get_vm_map(ssc, &entries, &num_entries)) {
-		ret = 1;
-		goto error;
-	}
-
-	for (int i = 0; i < num_entries; i++) {
-		if (entries[i].prot == (PROT_READ | PROT_EXEC)) {
-			text_seg_base = (uint8_t *)entries[i].start;
-			break;
-		}
-	}
-
-	if (!text_seg_base) {
-		ret = 1;
-		goto error;
-	}
-
-	// enable installing of debug packages
-	for (int i = 0; i < COUNT_OF(call_ofs_for__xor__eax_eax__3nop); i++) {
-		ret = proc_write_mem(ssc, (void *)(text_seg_base + call_ofs_for__xor__eax_eax__3nop[i]), 5, "\x31\xC0\x90\x90\x90", &n);
-		if (ret) {
-			goto error;
-		}
-	}
-
-	// this offset corresponds to "fake\0" string in the Shellcore's memory
-	ret = proc_write_mem(ssc, (void *)(text_seg_base + 0xC980EE), 5, "free\0", &n);
-	if (ret) {
-		goto error;
-	}
-
-	// disable updates
-
-	// doUpdate
-	// mov eax, 80182502h
-	// retn
-	/*ret = proc_write_mem(ssc, (void *)(text_seg_base + 0x8E00B0), 6, "\xB8\x02\x25\x18\x80\xC3", &n);
-	if(ret) {
-		goto error;
-	}
-
-	// _doUpdate
-	// mov eax, 80182500h
-	// retn
-	ret = proc_write_mem(ssc, (void *)(text_seg_base + 0xB1C70), 6, "\xB8\x00\x25\x18\x80\xC3", &n);
-	if(ret) {
-		goto error;
-	}*/
-
-	//checkTitleSystemUpdate:
-	//	xor eax, eax
-	//	retn
-	/*ret = proc_write_mem(ssc, (void *)(text_seg_base + 0x322E60), 3, "\x31\xC0\xC3", &n);
-	if(ret) {
-		goto error;
-	}*/
-
-	// you could also set value (0x2860100) in Registry Manager to 1
-	// this will make checkTitleSystemUpdate skip but may have other consequences
-
-error:
-	if (entries) {
-		dealloc(entries);
-	}
-
-	return ret;
-}
-
 int receive_payload(void **payload, size_t *psize) {
 	struct sockaddr_in server;
 	server.sin_len = sizeof(server);
@@ -300,12 +205,6 @@ int jkpatch(struct thread *td, struct jkuap *uap) {
 	// install wizardry
 	if (install_payload(td, kernbase, uap->payload, uap->psize)) {
 		printf("[jkpatch] install_payload failed!\n");
-		return 1;
-	}
-
-	printf("[jkpatch] patching shellcore...\n");
-	if (patch_shellcore()) {
-		printf("[jkpatch] failed to patch shellcore!\n");
 		return 1;
 	}
 

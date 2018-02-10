@@ -21,9 +21,4 @@ void resolve(uint64_t kernbase) {
 	r(sx_xunlock, __sx_xunlock);
 	r(fpu_kern_enter, __fpu_kern_enter);
 	r(fpu_kern_leave, __fpu_kern_leave);
-	r(vm_map_lock_read, __vm_map_lock_read);
-	r(vm_map_lookup_entry, __vm_map_lookup_entry);
-	r(vm_map_unlock_read, __vm_map_unlock_read);
-	r(vmspace_free, __vmspace_free);
-	r(vmspace_acquire_ref, __vmspace_acquire_ref);
 }

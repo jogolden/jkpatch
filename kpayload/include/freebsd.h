@@ -8,24 +8,20 @@
 
 #include "sparse.h"
 
-#include <stdarg.h>
-/*typedef char *va_list;
-#define	__va_size(type) (((sizeof(type) + sizeof(int) - 1) / sizeof(int)) * sizeof(int))
-#define	va_start(ap, last) ((ap) = (va_list)&(last) + __va_size(last))
-#define	va_end(ap)*/
+#define PAGE_SIZE 0x4000
 
-typedef int vm_prot_t;
 typedef uint64_t vm_offset_t;
-typedef unsigned long size_t;
-#define	VM_PROT_NONE	((vm_prot_t) 0x00)
-#define VM_PROT_READ	((vm_prot_t) 0x01)	/* read permission */
-#define VM_PROT_WRITE	((vm_prot_t) 0x02)	/* write permission */
-#define VM_PROT_EXECUTE	((vm_prot_t) 0x04)	/* execute permission */
-#define VM_PROT_DEFAULT	(VM_PROT_READ|VM_PROT_WRITE)
-#define VM_PROT_ALL			(VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE)
-#define VM_PROT_NO_CHANGE	((vm_prot_t) 0x08)
-#define VM_PROT_COPY		((vm_prot_t) 0x10)
-#define VM_PROT_WANTS_COPY	((vm_prot_t) 0x10)
+typedef uint64_t size_t;
+
+#define	VM_PROT_NONE		0x00
+#define VM_PROT_READ		0x01	/* read permission */
+#define VM_PROT_WRITE		0x02	/* write permission */
+#define VM_PROT_EXECUTE		0x04	/* execute permission */
+#define VM_PROT_DEFAULT		(VM_PROT_READ | VM_PROT_WRITE)
+#define VM_PROT_ALL			(VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE)
+#define VM_PROT_NO_CHANGE	0x08
+#define VM_PROT_COPY		0x10
+#define VM_PROT_WANTS_COPY	0x10
 
 #define PROT_READ	0x1     /* Page can be read.  */
 #define PROT_WRITE	0x2     /* Page can be written.  */
@@ -161,6 +157,31 @@ struct sx {
 	struct lock_object lock_object;
 	volatile uintptr_t sx_lock;
 };
+
+TYPE_BEGIN(struct vm_map_entry, 0xB8);
+TYPE_FIELD(struct vm_map_entry *prev, 0);
+TYPE_FIELD(struct vm_map_entry *next, 8);
+TYPE_FIELD(struct vm_map_entry *left, 0x10);
+TYPE_FIELD(struct vm_map_entry *right, 0x18);
+TYPE_FIELD(vm_offset_t start, 0x20);
+TYPE_FIELD(vm_offset_t end, 0x28);
+TYPE_FIELD(vm_offset_t offset, 0x50);
+TYPE_FIELD(uint16_t prot, 0x5C);
+TYPE_FIELD(char name[32], 0x88);
+TYPE_END();
+
+TYPE_BEGIN(struct vm_map, 0x178);
+TYPE_FIELD(struct vm_map_entry header, 0);
+TYPE_FIELD(struct sx lock, 0xB8);
+TYPE_FIELD(struct mtx system_mtx, 0xD8);
+TYPE_FIELD(int nentries, 0xF8);
+TYPE_FIELD(struct vm_map_entry *root, 0x110);
+TYPE_END();
+
+TYPE_BEGIN(struct vmspace, 0x250);
+TYPE_FIELD(struct vm_map vm_map, 0);
+// maybe I will add more later just for documentation purposes
+TYPE_END();
 
 struct auditinfo_addr {
 	uint8_t useless[184];

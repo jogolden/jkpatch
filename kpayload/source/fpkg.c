@@ -331,6 +331,71 @@ int hook_pfs_crypto__sceSblServiceCryptAsync(struct ccp_req *request) {
 	return ret;
 }
 
+int shellcore_fpkg_patch() {
+	uint8_t *text_seg_base = NULL;
+	size_t n;
+
+	struct proc_vm_map_entry *entries = NULL;
+	size_t num_entries;
+
+	int ret = 0;
+
+	// all offsets below are belongs to functions that parses .pkg files
+	uint32_t call_ofs_for__xor__eax_eax__3nop[] = {
+		0x11A0DB, // call sceKernelIsGenuineCEX
+		0x66EA3B, // call sceKernelIsGenuineCEX
+		0x7F554B, // call sceKernelIsGenuineCEX
+		0x11A107, // call nidf_libSceDipsw_0xD21CE9E2F639A83C
+		0x66EA67, // call nidf_libSceDipsw_0xD21CE9E2F639A83C
+		0x7F5577, // call nidf_libSceDipsw_0xD21CE9E2F639A83C
+	};
+
+	struct proc *ssc = proc_find_by_name("SceShellCore");
+
+	if (!ssc) {
+		ret = 1;
+		goto error;
+	}
+
+	if (proc_get_vm_map(ssc, &entries, &num_entries)) {
+		ret = 1;
+		goto error;
+	}
+
+	for (int i = 0; i < num_entries; i++) {
+		if (entries[i].prot == (PROT_READ | PROT_EXEC)) {
+			text_seg_base = (uint8_t *)entries[i].start;
+			break;
+		}
+	}
+
+	if (!text_seg_base) {
+		ret = 1;
+		goto error;
+	}
+
+	// enable installing of debug packages
+	for (int i = 0; i < COUNT_OF(call_ofs_for__xor__eax_eax__3nop); i++) {
+		ret = proc_write_mem(ssc, (void *)(text_seg_base + call_ofs_for__xor__eax_eax__3nop[i]), 5, "\x31\xC0\x90\x90\x90", &n);
+		if (ret) {
+			goto error;
+		}
+	}
+
+	// this offset corresponds to "fake\0" string in the Shellcore's memory
+	ret = proc_write_mem(ssc, (void *)(text_seg_base + 0xC980EE), 5, "free\0", &n);
+	if (ret) {
+		goto error;
+	}
+
+error:
+	if (entries) {
+		dealloc(entries);
+	}
+
+	return ret;
+}
+
 void install_fpkg_hooks() {
 	// disable write protect
 	uint64_t CR0 = __readcr0();

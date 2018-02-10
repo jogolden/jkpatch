@@ -39,62 +39,50 @@ struct proc *proc_find_by_pid(int pid) {
 }
 
 int proc_get_vm_map(struct proc *p, struct proc_vm_map_entry **entries, size_t *num_entries) {
-	uint64_t ents = NULL;
-	size_t num = NULL;
-
 	struct proc_vm_map_entry *info = NULL;
+	struct vm_map_entry *entry = NULL;
 
-	uint64_t vm = vmspace_acquire_ref(p);
+	struct vmspace *vm = vmspace_acquire_ref(p);
+	if (!vm) {
+		return 1;
+	}
 
-	// vm_map is first field in vmspace so idrc fuck it, clean it later
-	uint64_t map = vm;
+	struct vm_map *map = &vm->vm_map;
 
-	// TODO: fix this and make up string/number args
-	const char dbg[] = "W:\\Build\\J01660900\\sys\\freebsd\\sys\\kern\\sys_process.c";
+	int num = map->nentries;
+	if (!num) {
+		return 0;
+	}
 
-	vm_map_lock_read(map, dbg, 442);
+	vm_map_lock_read(map);
 
-	// vm_map_entry
-	// 0x20 is start int64
-	// 0x28 is end int64
-	// 0x50 is offset int64
-	// 0x5C is protection int16
-	// 0x88 is some sort of map name
-
-	if (vm_map_lookup_entry(map, 0, &ents)) {
-		vm_map_unlock_read(map, dbg, 442);
+	if (vm_map_lookup_entry(map, NULL, &entry)) {
+		vm_map_unlock_read(map);
 		vmspace_free(vm);
 		return 1;
 	}
 
-	// count number
-	uint64_t e0 = ents;
-	do {
-		num++;
-		ents = *(uint64_t *)(ents + 8);
-	} while (ents != e0);
-
 	info = (struct proc_vm_map_entry *)alloc(num * sizeof(struct proc_vm_map_entry));
-	//memset(info, NULL, num * sizeof(struct proc_vm_map_entry));
+	if (!info) {
+		vm_map_unlock_read(map);
+		vmspace_free(vm);
+		return 1;
+	}
 
-	// fill data
-	ents = e0;
-	int i = 0;
-	do {
-		info[i].start = *(uint64_t *)(ents + 0x20);
-		info[i].end = *(uint64_t *)(ents + 0x28);
-		info[i].offset = *(uint64_t *)(ents + 0x50);
-		info[i].prot = *(uint16_t *)(ents + 0x5C) & (*(uint16_t *)(ents + 0x5C) >> 8);
+	for (int i = 0; i < num; i++) {
+		info[i].start = entry->start;
+		info[i].end = entry->end;
+		info[i].offset = entry->offset;
+		info[i].prot = entry->prot & (entry->prot >> 8);
+		memcpy(info[i].name, entry->name, sizeof(entry->name));
 
-		char *name = (char *)(ents + 0x88);
-		memcpy(info[i].name, name, 32);
+		entry = entry->next;
+		if (!entry) {
+			break;
+		}
+	}
 
-		i++;
-		ents = *(uint64_t *)(ents + 8);
-	} while (ents != e0);
-
-	// clean up
-	vm_map_unlock_read(map, dbg, 442);
+	vm_map_unlock_read(map);
 	vmspace_free(vm);
 
 	if (entries) {
@@ -104,9 +92,6 @@ int proc_get_vm_map(struct proc *p, struct proc_vm_map_entry **entries, size_t *
 	if (num_entries) {
 		*num_entries = num;
 	}
-
-	info = NULL;
-	num = 0;
 
 	return 0;
 }

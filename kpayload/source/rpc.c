@@ -187,9 +187,16 @@ int rpc_handle_info(int fd, struct rpc_packet *packet) {
 
 	r = proc_get_vm_map(p, &entries, &num_entries);
 	count = num_entries;
-	if (r || !count) {
+	if (r) {
 		rpc_send_status(fd, RPC_INFO_ERROR);
 		r = 1;
+		goto error;
+	}
+
+	// some processes, like daemons do not have any virtual memory mapped
+	if(!count) {
+		rpc_send_status(fd, RPC_INFO_NO_MAP);
+		r = 0;
 		goto error;
 	}
 

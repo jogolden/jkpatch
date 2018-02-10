@@ -13,7 +13,7 @@ namespace librpc
         private IPEndPoint enp = null;
         private bool connected = false;
 
-        private static int RPC_PORT = 733;
+        private static int RPC_PORT = 736;
         private static uint RPC_PACKET_MAGIC = 0xBDAABBCC;
         private static int RPC_MAX_DATA_LEN = 4096;
 
@@ -26,13 +26,14 @@ namespace librpc
         private static int RPC_PROC_INFO2_SIZE = 60; // this is received
 
         // status
-        private static uint RPC_SUCCESS			= 0x80000000;
-        private static uint RPC_TOO_MUCH_DATA	= 0x80000001;
-        private static uint RPC_READ_ERROR		= 0x80000002;
-        private static uint RPC_WRITE_ERROR		= 0x80000003;
+        private static uint RPC_SUCCESS         = 0x80000000;
+        private static uint RPC_TOO_MUCH_DATA   = 0x80000001;
+        private static uint RPC_READ_ERROR      = 0x80000002;
+        private static uint RPC_WRITE_ERROR     = 0x80000003;
         private static uint RPC_LIST_ERROR      = 0x80000004;
         private static uint RPC_INFO_ERROR      = 0x80000005;
-        private static uint RPC_NO_PROC			= 0x80000006;
+        private static uint RPC_INFO_NO_MAP     = 0x80000006;
+        private static uint RPC_NO_PROC         = 0x80000007;
 
         private static Dictionary<uint, string> StatusMessages = new Dictionary<uint, string>()
         {
@@ -48,13 +49,13 @@ namespace librpc
         // cmds
         private enum RPC_CMDS : uint
         {
-            RPC_PROC_READ		= 0xBD000001,
-            RPC_PROC_WRITE		= 0xBD000002,
-            RPC_PROC_LIST		= 0xBD000003,
-            RPC_PROC_INFO		= 0xBD000004,
-            RPC_PROC_INTALL		= 0xBD000005,
-            RPC_PROC_CALL		= 0xBD000006,
-            RPC_PROC_END		= 0xBD000007
+            RPC_PROC_READ       = 0xBD000001,
+            RPC_PROC_WRITE      = 0xBD000002,
+            RPC_PROC_LIST       = 0xBD000003,
+            RPC_PROC_INFO       = 0xBD000004,
+            RPC_PROC_INTALL     = 0xBD000005,
+            RPC_PROC_CALL       = 0xBD000006,
+            RPC_PROC_END        = 0xBD000007
         };
 
         public static string GetNullTermString(byte[] data, int offset)
@@ -163,15 +164,17 @@ namespace librpc
             sock.Receive(status, 4, SocketFlags.None);
             return BitConverter.ToUInt32(status, 0);
         }
-        private void CheckRPCStatus()
+        private uint CheckRPCStatus()
         {
             uint status = ReceiveRPCStatus();
-            if (status != RPC_SUCCESS)
+            if (status != RPC_SUCCESS && status != RPC_INFO_NO_MAP)
             {
                 string value = "";
                 StatusMessages.TryGetValue(status, out value);
                 throw new Exception("librpc: " + value);
             }
+
+            return status;
         }
         private void SendData(byte[] data, int length)
         {
@@ -292,7 +295,11 @@ namespace librpc
             SendCMDPacket(RPC_CMDS.RPC_PROC_INFO, RPC_PROC_INFO1_SIZE);
             SendPacketData(RPC_PROC_INFO1_SIZE, pid);
 
-            CheckRPCStatus();
+            uint status = CheckRPCStatus();
+            if(status == RPC_INFO_NO_MAP)
+            {
+                return new ProcessInfo(pid, null);
+            }
 
             // recv count
             byte[] bnumber = new byte[4];

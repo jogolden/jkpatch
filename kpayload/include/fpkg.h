@@ -6,7 +6,9 @@
 
 #include "jkpayload.h"
 #include "keys.h"
+#include "proc.h"
 
+int shellcore_fpkg_patch();
 void install_fpkg_hooks();
 
 #endif

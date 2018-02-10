@@ -11,7 +11,7 @@ struct proc_vm_map_entry {
 	vm_offset_t start;
 	vm_offset_t end;
 	vm_offset_t offset;
-	vm_prot_t prot;
+	uint16_t prot;
 };
 
 struct proc *proc_find_by_name(const char *name);

@@ -5,6 +5,7 @@
 #define _PAYLOAD_H
 
 #include <stdint.h>
+#include <stdarg.h>
 #include "AMD.h"
 #include "freebsd.h"
 #include "magic.h"

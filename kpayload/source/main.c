@@ -18,6 +18,7 @@ int payload_entry(void *arg) {
 	install_fself_hooks();
 
 	// fake package containers
+	shellcore_fpkg_patch();
 	install_fpkg_hooks();
 
 	return 0;
