@@ -12,7 +12,7 @@
 // todo: write better c style code
 
 // network
-#define RPC_PORT			736
+#define RPC_PORT			733
 
 // magic
 #define RPC_PACKET_MAGIC	0xBDAABBCC

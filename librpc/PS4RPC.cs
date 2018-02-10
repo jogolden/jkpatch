@@ -13,7 +13,7 @@ namespace librpc
         private IPEndPoint enp = null;
         private bool connected = false;
 
-        private static int RPC_PORT = 736;
+        private static int RPC_PORT = 733;
         private static uint RPC_PACKET_MAGIC = 0xBDAABBCC;
         private static int RPC_MAX_DATA_LEN = 4096;
 
