@@ -60,25 +60,12 @@ void debug_patches(struct thread *td, uint64_t kernbase) {
 	// flatz enable debug rifs
 	*(uint64_t *)(kernbase + 0x6215B4) = 0x812EEB00000001B8;
 
-	// disable mdbg_run_dump
-	//*(uint8_t *)(kernbase + 0x71A760) = 0xC3;
+	// patch vm_fault_hold so it will fault on MAP_ENTRY_NOFAULT
+	memcpy((void *)(kernbase + 0xC6991), "\x90\x90\x90\x90\x90\x90", 6);
 
 	// disable sysdump_perform_dump_on_fatal_trap
 	// will continue execution and give more information on crash, such as rip
 	*(uint8_t *)(kernbase + 0x71BDF0) = 0xC3;
-
-	// enter kdb from trap_fatal
-	/*unsigned char kdbpatch[16] = {
-		// mov edi, [r12+78h]
-		// xor esi, esi
-		// mov rdx, r12
-		// call kdb_trap
-		0x41, 0x8B, 0x7C, 0x24, 0x78, 0x31, 0xF6, 0x4C, 0x89, 0xE2, 0xE8, 0x2F, 0x43, 0x29, 0x00, 0xC3
-	};
-	memcpy((void *)(kernbase + 0xECA92), kdbpatch, 16);*/
-
-	// skip dump in metadbg_perform_dump_on_panic (works? idk)
-	//*(uint8_t *)(kernbase + 0x71BBB3) = 0xEB;
 }
 
 void scesbl_patches(struct thread *td, uint64_t kernbase) {

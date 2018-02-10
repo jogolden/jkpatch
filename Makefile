@@ -3,7 +3,7 @@
 TARGET = payload.bin
 KTARGET = kpayload.elf
 
-all: $(TARGET) $(KTARGET)
+all: clean $(TARGET) $(KTARGET)
 
 $(TARGET):
 	cd payload && $(MAKE) -s
