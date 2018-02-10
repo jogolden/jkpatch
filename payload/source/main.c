@@ -60,8 +60,9 @@ void debug_patches(struct thread *td, uint64_t kernbase) {
 	// flatz enable debug rifs
 	*(uint64_t *)(kernbase + 0x6215B4) = 0x812EEB00000001B8;
 
-	// patch vm_fault_hold so it will fault on MAP_ENTRY_NOFAULT
-	memcpy((void *)(kernbase + 0xC6991), "\x90\x90\x90\x90\x90\x90", 6);
+	// patch vm_fault_hold
+	//memcpy((void *)(kernbase + 0xC6991), "\x90\x90\x90\x90\x90\x90", 6); terrible patch
+	memcpy((void *)(kernbase + 0xC849F), "\xBB\x05\x00\x00\x00\xEB\xD5", 7);
 
 	// disable sysdump_perform_dump_on_fatal_trap
 	// will continue execution and give more information on crash, such as rip
