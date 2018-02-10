@@ -266,8 +266,13 @@ int rpc_cmd_handler(int fd, struct rpc_packet *packet) {
 		// todo
 		break;
 	}
-	case RPC_PROC_END: {
+	case RPC_END: {
 		return 1;
+		break;
+	}
+	case RPC_REBOOT: {
+		kern_reboot(0);
+		break;
 	}
 	}
 

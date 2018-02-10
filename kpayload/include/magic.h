@@ -30,6 +30,7 @@
 #define __mtx_unlock_sleep						0x36E510
 #define __fpu_kern_enter						0x39A120
 #define __fpu_kern_leave						0x39A220
+#define __kern_reboot							0x25FC10
 #define __vm_map_lock_read						0x43DF10
 #define __vm_map_lookup_entry					0x43E470
 #define __vm_map_unlock_read					0x43DF60

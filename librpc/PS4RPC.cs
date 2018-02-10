@@ -17,6 +17,19 @@ namespace librpc
         private static uint RPC_PACKET_MAGIC = 0xBDAABBCC;
         private static int RPC_MAX_DATA_LEN = 4096;
 
+        // cmds
+        private enum RPC_CMDS : uint
+        {
+            RPC_PROC_READ = 0xBD000001,
+            RPC_PROC_WRITE = 0xBD000002,
+            RPC_PROC_LIST = 0xBD000003,
+            RPC_PROC_INFO = 0xBD000004,
+            RPC_PROC_INTALL = 0xBD000005,
+            RPC_PROC_CALL = 0xBD000006,
+            RPC_END = 0xBD000007,
+            RPC_REBOOT = 0xBD000008,
+        };
+
         // sizes
         private static int RPC_PACKET_SIZE = 12;
         private static int RPC_PROC_READ_SIZE = 16;
@@ -26,14 +39,14 @@ namespace librpc
         private static int RPC_PROC_INFO2_SIZE = 60; // this is received
 
         // status
-        private static uint RPC_SUCCESS         = 0x80000000;
-        private static uint RPC_TOO_MUCH_DATA   = 0x80000001;
-        private static uint RPC_READ_ERROR      = 0x80000002;
-        private static uint RPC_WRITE_ERROR     = 0x80000003;
-        private static uint RPC_LIST_ERROR      = 0x80000004;
-        private static uint RPC_INFO_ERROR      = 0x80000005;
-        private static uint RPC_INFO_NO_MAP     = 0x80000006;
-        private static uint RPC_NO_PROC         = 0x80000007;
+        private static uint RPC_SUCCESS = 0x80000000;
+        private static uint RPC_TOO_MUCH_DATA = 0x80000001;
+        private static uint RPC_READ_ERROR = 0x80000002;
+        private static uint RPC_WRITE_ERROR = 0x80000003;
+        private static uint RPC_LIST_ERROR = 0x80000004;
+        private static uint RPC_INFO_ERROR = 0x80000005;
+        private static uint RPC_INFO_NO_MAP = 0x80000006;
+        private static uint RPC_NO_PROC = 0x80000007;
 
         private static Dictionary<uint, string> StatusMessages = new Dictionary<uint, string>()
         {
@@ -44,18 +57,6 @@ namespace librpc
             { RPC_LIST_ERROR, "process list error"},
             { RPC_INFO_ERROR, "process information error"},
             { RPC_NO_PROC, "no such process error"},
-        };
-
-        // cmds
-        private enum RPC_CMDS : uint
-        {
-            RPC_PROC_READ       = 0xBD000001,
-            RPC_PROC_WRITE      = 0xBD000002,
-            RPC_PROC_LIST       = 0xBD000003,
-            RPC_PROC_INFO       = 0xBD000004,
-            RPC_PROC_INTALL     = 0xBD000005,
-            RPC_PROC_CALL       = 0xBD000006,
-            RPC_PROC_END        = 0xBD000007
         };
 
         public static string GetNullTermString(byte[] data, int offset)
@@ -107,10 +108,10 @@ namespace librpc
         private void SendPacketData(int length, params object[] fields)
         {
             MemoryStream rs = new MemoryStream();
-            foreach(object field in fields)
+            foreach (object field in fields)
             {
                 byte[] bytes = null;
-                
+
                 // todo: clean up and find better way
                 if (field.GetType() == typeof(char))
                 {
@@ -128,7 +129,7 @@ namespace librpc
                 {
                     bytes = BitConverter.GetBytes((ushort)field);
                 }
-                else if(field.GetType() == typeof(int))
+                else if (field.GetType() == typeof(int))
                 {
                     bytes = BitConverter.GetBytes((int)field);
                 }
@@ -144,7 +145,7 @@ namespace librpc
                 {
                     bytes = BitConverter.GetBytes((ulong)field);
                 }
-                else if(field.GetType() == typeof(byte[]))
+                else if (field.GetType() == typeof(byte[]))
                 {
                     bytes = (byte[])field;
                 }
@@ -179,7 +180,7 @@ namespace librpc
         private void SendData(byte[] data, int length)
         {
             // todo: implement looping until success
-            if(length != sock.Send(data, length, SocketFlags.None))
+            if (length != sock.Send(data, length, SocketFlags.None))
             {
                 throw new Exception("librpc: could not send data over socket");
             }
@@ -213,28 +214,53 @@ namespace librpc
         }
         public void Disconnect()
         {
-            SendCMDPacket(RPC_CMDS.RPC_PROC_END, 0);
+            SendCMDPacket(RPC_CMDS.RPC_END, 0);
             sock.Dispose();
             connected = false;
         }
- 
+        public void Reboot()
+        {
+            SendCMDPacket(RPC_CMDS.RPC_REBOOT, 0);
+            sock.Dispose();
+            connected = false;
+        }
+
         public byte[] ReadMemory(int pid, ulong address, int length)
         {
-            if(!connected)
+            if (!connected)
             {
                 throw new Exception("librpc: not connected");
             }
 
-            if(length > RPC_MAX_DATA_LEN)
+            byte[] data = null;
+
+            if (length > RPC_MAX_DATA_LEN)
             {
-                throw new Exception("librpc: length > RPC_MAX_DATA_LEN");
+                MemoryStream rs = new MemoryStream();
+
+                // read max data length
+                SendCMDPacket(RPC_CMDS.RPC_PROC_READ, RPC_PROC_READ_SIZE);
+                SendPacketData(RPC_PROC_READ_SIZE, pid, address, RPC_MAX_DATA_LEN);
+                CheckRPCStatus();
+                rs.Write(ReceiveData(RPC_MAX_DATA_LEN), 0, RPC_MAX_DATA_LEN);
+
+                // call ReadMemory again
+                int nextlength = length - RPC_MAX_DATA_LEN;
+                byte[] nextdata = ReadMemory(pid, address + (ulong)RPC_MAX_DATA_LEN, nextlength);
+                rs.Write(nextdata, 0, nextlength);
+
+                data = rs.ToArray();
+                rs.Dispose();
+            }
+            else
+            {
+                SendCMDPacket(RPC_CMDS.RPC_PROC_READ, RPC_PROC_READ_SIZE);
+                SendPacketData(RPC_PROC_READ_SIZE, pid, address, length);
+                CheckRPCStatus();
+                data = ReceiveData(length);
             }
 
-            SendCMDPacket(RPC_CMDS.RPC_PROC_READ, RPC_PROC_READ_SIZE);
-            SendPacketData(RPC_PROC_READ_SIZE, pid, address, length);
-            CheckRPCStatus();
-
-            return ReceiveData(length);
+            return data;
         }
         public void WriteMemory(int pid, ulong address, byte[] data)
         {
@@ -245,14 +271,30 @@ namespace librpc
 
             if (data.Length > RPC_MAX_DATA_LEN)
             {
-                throw new Exception("librpc: length > RPC_MAX_DATA_LEN");
-            }
+                // write RPC_MAX_DATA_LEN
+                byte[] nowdata = new byte[RPC_MAX_DATA_LEN];
+                Array.Copy(data, 0, nowdata, 0, RPC_MAX_DATA_LEN);
 
-            SendCMDPacket(RPC_CMDS.RPC_PROC_WRITE, RPC_PROC_WRITE_SIZE);
-            SendPacketData(RPC_PROC_WRITE_SIZE, pid, address, data.Length);
-            CheckRPCStatus();
-            SendData(data, data.Length);
-            CheckRPCStatus();
+                SendCMDPacket(RPC_CMDS.RPC_PROC_WRITE, RPC_PROC_WRITE_SIZE);
+                SendPacketData(RPC_PROC_WRITE_SIZE, pid, address, RPC_MAX_DATA_LEN);
+                CheckRPCStatus();
+                SendData(nowdata, RPC_MAX_DATA_LEN);
+                CheckRPCStatus();
+
+                // call WriteMemory again with rest of it
+                int nextlength = data.Length - RPC_MAX_DATA_LEN;
+                byte[] nextdata = new byte[nextlength];
+                Array.Copy(data, RPC_MAX_DATA_LEN, nextdata, 0, nextlength);
+                WriteMemory(pid, address + (ulong)RPC_MAX_DATA_LEN, nextdata);
+            }
+            else
+            {
+                SendCMDPacket(RPC_CMDS.RPC_PROC_WRITE, RPC_PROC_WRITE_SIZE);
+                SendPacketData(RPC_PROC_WRITE_SIZE, pid, address, data.Length);
+                CheckRPCStatus();
+                SendData(data, data.Length);
+                CheckRPCStatus();
+            }
         }
         public ProcessList GetProcessList()
         {
@@ -276,7 +318,7 @@ namespace librpc
             // parse data
             string[] procnames = new string[number];
             int[] pids = new int[number];
-            for(int i = 0; i < number; i++)
+            for (int i = 0; i < number; i++)
             {
                 int offset = i * RPC_PROC_LIST_SIZE;
                 procnames[i] = GetNullTermString(data, offset);
@@ -296,7 +338,7 @@ namespace librpc
             SendPacketData(RPC_PROC_INFO1_SIZE, pid);
 
             uint status = CheckRPCStatus();
-            if(status == RPC_INFO_NO_MAP)
+            if (status == RPC_INFO_NO_MAP)
             {
                 return new ProcessInfo(pid, null);
             }

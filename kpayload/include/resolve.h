@@ -38,6 +38,7 @@ void (*mtx_lock_sleep)(struct mtx *mutex, int flags);
 void (*mtx_unlock_sleep)(struct mtx *mutex, int flags);
 int (*fpu_kern_enter)(struct thread *td, void *ctx, unsigned int flags);
 int (*fpu_kern_leave)(struct thread *td, void *ctx);
+void (*kern_reboot)(int magic);
 
 // virtual memory
 struct vmspace *(*vmspace_acquire_ref)(struct proc *p);

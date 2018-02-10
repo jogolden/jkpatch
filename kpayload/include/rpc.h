@@ -24,7 +24,8 @@
 #define RPC_PROC_INFO		0xBD000004
 #define RPC_PROC_INTALL		0xBD000005
 #define RPC_PROC_CALL		0xBD000006
-#define RPC_PROC_END		0xBD000007
+#define RPC_END				0xBD000007
+#define RPC_REBOOT			0xBD000008
 
 #define RPC_VALID_CMD(cmd)	(((cmd & 0xFF000000) >> 24) == 0xBD)
 

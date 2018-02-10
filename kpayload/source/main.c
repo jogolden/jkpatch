@@ -8,11 +8,7 @@
 #include "fpkg.h"
 
 void hook_trap_fatal(uint64_t frame) {
-	uint64_t kernbase = getkernbase();
-	void (*kern_reboot)(int magic) = (void *)(kernbase + 0x25FC10);
-
 	// todo: add more debug information
-
 	kern_reboot(0);
 }
 

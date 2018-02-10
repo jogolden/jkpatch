@@ -33,6 +33,7 @@ void resolve(uint64_t kernbase) {
 	r(mtx_unlock_sleep, __mtx_unlock_sleep);
 	r(fpu_kern_enter, __fpu_kern_enter);
 	r(fpu_kern_leave, __fpu_kern_leave);
+	r(kern_reboot, __kern_reboot);
 	r(vm_map_lock_read, __vm_map_lock_read);
 	r(vm_map_lookup_entry, __vm_map_lookup_entry);
 	r(vm_map_unlock_read, __vm_map_unlock_read);
