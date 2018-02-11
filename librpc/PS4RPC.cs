@@ -59,7 +59,7 @@ namespace librpc
             { RPC_NO_PROC, "no such process error"},
         };
 
-        public static string GetNullTermString(byte[] data, int offset)
+        private static string GetNullTermString(byte[] data, int offset)
         {
             int length = Array.IndexOf<byte>(data, 0, offset) - offset;
             if (length < 0)
@@ -68,6 +68,12 @@ namespace librpc
             }
 
             return Encoding.ASCII.GetString(data, offset, length);
+        }
+        public byte[] SubArray(byte[] data, int offset, int length)
+        {
+            byte[] bytes = new byte[length];
+            Buffer.BlockCopy(data, offset, bytes, 0, length);
+            return bytes;
         }
 
         public PS4RPC(IPAddress addr)
@@ -96,15 +102,6 @@ namespace librpc
             sock.ReceiveTimeout = sock.SendTimeout = 5 * 1000;
         }
 
-        private void SendCMDPacket(RPC_CMDS cmd, int length)
-        {
-            MemoryStream stream = new MemoryStream();
-            stream.Write(BitConverter.GetBytes(RPC_PACKET_MAGIC), 0, sizeof(uint));
-            stream.Write(BitConverter.GetBytes((uint)cmd), 0, sizeof(uint));
-            stream.Write(BitConverter.GetBytes(length), 0, sizeof(uint));
-            byte[] pack = stream.ToArray();
-            sock.Send(pack, RPC_PACKET_SIZE, SocketFlags.None);
-        }
         private void SendPacketData(int length, params object[] fields)
         {
             MemoryStream rs = new MemoryStream();
@@ -157,7 +154,11 @@ namespace librpc
 
             rs.Dispose();
 
-            sock.Send(packet, length, SocketFlags.None);
+            SendData(packet, length);
+        }
+        private void SendCMDPacket(RPC_CMDS cmd, int length)
+        {
+            SendPacketData(RPC_PACKET_SIZE, RPC_PACKET_MAGIC, (uint)cmd, length);
         }
         private uint ReceiveRPCStatus()
         {
@@ -179,10 +180,25 @@ namespace librpc
         }
         private void SendData(byte[] data, int length)
         {
-            // todo: implement looping until success
-            if (length != sock.Send(data, length, SocketFlags.None))
+            int left = length;
+            int offset = 0;
+            int sent = 0;
+            while (left > 0)
             {
-                throw new Exception("librpc: could not send data over socket");
+                if (left > RPC_MAX_DATA_LEN)
+                {
+                    byte[] bytes = SubArray(data, offset, RPC_MAX_DATA_LEN);
+                    sent = sock.Send(bytes, RPC_MAX_DATA_LEN, SocketFlags.None);
+                    offset += sent;
+                    left -= sent;
+                }
+                else
+                {
+                    byte[] bytes = SubArray(data, offset, left);
+                    sent = sock.Send(bytes, left, SocketFlags.None);
+                    offset += sent;
+                    left -= sent;
+                }
             }
         }
         private byte[] ReceiveData(int length)
@@ -208,10 +224,11 @@ namespace librpc
 
         public void Connect()
         {
-            if (!connected) {
+            if (!connected)
+            {
                 sock.Connect(enp);
+                connected = true;
             }
-            connected = true;
         }
         public void Disconnect()
         {
@@ -273,8 +290,7 @@ namespace librpc
             if (data.Length > RPC_MAX_DATA_LEN)
             {
                 // write RPC_MAX_DATA_LEN
-                byte[] nowdata = new byte[RPC_MAX_DATA_LEN];
-                Array.Copy(data, 0, nowdata, 0, RPC_MAX_DATA_LEN);
+                byte[] nowdata = SubArray(data, 0, RPC_MAX_DATA_LEN);
 
                 SendCMDPacket(RPC_CMDS.RPC_PROC_WRITE, RPC_PROC_WRITE_SIZE);
                 SendPacketData(RPC_PROC_WRITE_SIZE, pid, address, RPC_MAX_DATA_LEN);
@@ -284,11 +300,11 @@ namespace librpc
 
                 // call WriteMemory again with rest of it
                 int nextlength = data.Length - RPC_MAX_DATA_LEN;
-                byte[] nextdata = new byte[nextlength];
-                Array.Copy(data, RPC_MAX_DATA_LEN, nextdata, 0, nextlength);
-                WriteMemory(pid, address + (ulong)RPC_MAX_DATA_LEN, nextdata);
+                ulong nextaddr = address + (ulong)RPC_MAX_DATA_LEN;
+                byte[] nextdata = SubArray(data, RPC_MAX_DATA_LEN, nextlength);
+                WriteMemory(pid, nextaddr, nextdata);
             }
-            else
+            else if(data.Length > 0)
             {
                 SendCMDPacket(RPC_CMDS.RPC_PROC_WRITE, RPC_PROC_WRITE_SIZE);
                 SendPacketData(RPC_PROC_WRITE_SIZE, pid, address, data.Length);
