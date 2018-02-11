@@ -32,10 +32,10 @@ void resolve(uint64_t kernbase);
 
 ### Coming Soon
 - Clean up C# library (librpc)
-- Add ability to call routines in processes (up to 6 parameters, i.e. registers only)
 - RPC documentation, write a pdf explaining how to get started
 - Add kernel read/write/allocate/free/execute commands
 - General code clean up and refactoring
+- Inject elfs into processes (easy)
 
 Thank you to flatz, idc, zecoxao, hitodama, osdev.org!
 
