@@ -67,6 +67,9 @@ void debug_patches(struct thread *td, uint64_t kernbase) {
 	// disable sysdump_perform_dump_on_fatal_trap
 	// will continue execution and give more information on crash, such as rip
 	*(uint8_t *)(kernbase + 0x71BDF0) = 0xC3;
+
+	// remove suspicious mount message
+	*(uint8_t *)(kernbase + 0x202C11) = 0xEB;
 }
 
 void scesbl_patches(struct thread *td, uint64_t kernbase) {

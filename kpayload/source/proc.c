@@ -7,7 +7,7 @@ struct proc *proc_find_by_name(const char *name) {
 	struct proc *p;
 
 	if (!name) {
-		goto error;
+		return NULL;
 	}
 
 	uint64_t kernbase = getkernbase();
@@ -19,7 +19,6 @@ struct proc *proc_find_by_name(const char *name) {
 		}
 	} while ((p = p->p_forw));
 
-error:
 	return NULL;
 }
 
@@ -51,6 +50,7 @@ int proc_get_vm_map(struct proc *p, struct proc_vm_map_entry **entries, size_t *
 
 	int num = map->nentries;
 	if (!num) {
+		vmspace_free(vm);
 		return 0;
 	}
 
@@ -76,8 +76,7 @@ int proc_get_vm_map(struct proc *p, struct proc_vm_map_entry **entries, size_t *
 		info[i].prot = entry->prot & (entry->prot >> 8);
 		memcpy(info[i].name, entry->name, sizeof(info[i].name));
 
-		entry = entry->next;
-		if (!entry) {
+		if (!(entry = entry->next)) {
 			break;
 		}
 	}
@@ -103,7 +102,7 @@ int proc_rw_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n, i
 	int ret = 0;
 
 	if (!p) {
-		ret = -1;
+		ret = 1;
 		goto error;
 	}
 
@@ -116,11 +115,11 @@ int proc_rw_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n, i
 		goto error;
 	}
 
-	memset(&iov, 0, sizeof(iov));
+	memset(&iov, NULL, sizeof(iov));
 	iov.iov_base = (uint64_t)data;
 	iov.iov_len = size;
 
-	memset(&uio, 0, sizeof(uio));
+	memset(&uio, NULL, sizeof(uio));
 	uio.uio_iov = (uint64_t)&iov;
 	uio.uio_iovcnt = 1;
 	uio.uio_offset = (uint64_t)ptr;

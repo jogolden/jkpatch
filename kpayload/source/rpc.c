@@ -32,12 +32,10 @@ int rpc_send_data(int fd, uint8_t *data, int length) {
 	return 0;
 }
 
-int rpc_handle_read(int fd, struct rpc_packet *packet) {
+int rpc_handle_read(int fd, struct rpc_proc_read *pread) {
 	uint8_t *data = NULL;
 	size_t n = 0;
 	int r = 0;
-
-	struct rpc_proc_read *pread = (struct rpc_proc_read *)packet->data;
 
 	int length = pread->length;
 
@@ -54,6 +52,7 @@ int rpc_handle_read(int fd, struct rpc_packet *packet) {
 		r = proc_read_mem(p, (void *)pread->address, (size_t)length, data, &n);
 		if (r || n != length) {
 			rpc_send_status(fd, RPC_READ_ERROR);
+			r = 1;
 			goto error;
 		} else {
 			// send back data
@@ -74,12 +73,10 @@ error:
 	return r;
 }
 
-int rpc_handle_write(int fd, struct rpc_packet *packet) {
+int rpc_handle_write(int fd, struct rpc_proc_write *pwrite) {
 	uint8_t *data = NULL;
 	size_t n = 0;
 	int r = 0;
-
-	struct rpc_proc_read *pwrite = (struct rpc_proc_read *)packet->data;
 
 	int length = pwrite->length;
 
@@ -94,6 +91,7 @@ int rpc_handle_write(int fd, struct rpc_packet *packet) {
 		rpc_send_status(fd, RPC_SUCCESS);
 
 		data = (uint8_t *)alloc(length);
+		memset(data, NULL, length);
 		net_recv(fd, data, length);
 
 		r = proc_write_mem(p, (void *)pwrite->address, (size_t)length, data, &n);
@@ -146,11 +144,10 @@ int rpc_handle_list(int fd, struct rpc_packet *packet) {
 		goto error;
 	}
 
+	struct rpc_proc_list *plist = (struct rpc_proc_list *)data;
 	for (int i = 0; i < count; i++) {
-		struct rpc_proc_list *plist = (struct rpc_proc_list *)(data + (i * RPC_PROC_LIST_SIZE));
-
-		memcpy(plist->name, p->p_comm, sizeof(plist->name));
-		plist->pid = p->pid;
+		memcpy(plist[i].name, p->p_comm, sizeof(plist[i].name));
+		plist[i].pid = p->pid;
 
 		if (!(p = p->p_forw)) {
 			break;
@@ -169,7 +166,7 @@ error:
 	return r;
 }
 
-int rpc_handle_info(int fd, struct rpc_packet *packet) {
+int rpc_handle_info(int fd, struct rpc_proc_info1 *pinfo) {
 	struct proc_vm_map_entry *entries = NULL;
 	size_t num_entries = 0;
 	uint32_t count = 0;
@@ -177,7 +174,6 @@ int rpc_handle_info(int fd, struct rpc_packet *packet) {
 	uint8_t *data = NULL;
 	int r = 0;
 
-	struct rpc_proc_info1 *pinfo = (struct rpc_proc_info1 *)packet->data;
 	struct proc *p = proc_find_by_pid(pinfo->pid);
 	if (!p) {
 		rpc_send_status(fd, RPC_NO_PROC);
@@ -208,14 +204,13 @@ int rpc_handle_info(int fd, struct rpc_packet *packet) {
 		goto error;
 	}
 
+	struct rpc_proc_info2 *info = (struct rpc_proc_info2 *)data;
 	for (int i = 0; i < count; i++) {
-		struct rpc_proc_info2 *info = (struct rpc_proc_info2 *)(data + (i * RPC_PROC_INFO2_SIZE));
-
-		memcpy(info->name, entries[i].name, sizeof(info->name));
-		info->start = entries[i].start;
-		info->end = entries[i].end;
-		info->offset = entries[i].offset;
-		info->prot = entries[i].prot;
+		memcpy(info[i].name, entries[i].name, sizeof(info[i].name));
+		info[i].start = entries[i].start;
+		info[i].end = entries[i].end;
+		info[i].offset = entries[i].offset;
+		info[i].prot = entries[i].prot;
 	}
 
 	rpc_send_status(fd, RPC_SUCCESS);
@@ -243,19 +238,19 @@ int rpc_cmd_handler(int fd, struct rpc_packet *packet) {
 
 	switch (packet->cmd) {
 	case RPC_PROC_READ: {
-		rpc_handle_read(fd, packet);
+		rpc_handle_read(fd, (struct rpc_proc_read *)packet->data);
 		break;
 	}
 	case RPC_PROC_WRITE: {
-		rpc_handle_write(fd, packet);
+		rpc_handle_write(fd, (struct rpc_proc_write *)packet->data);
 		break;
 	}
 	case RPC_PROC_LIST: {
-		rpc_handle_list(fd, packet);
+		rpc_handle_list(fd, NULL);
 		break;
 	}
 	case RPC_PROC_INFO: {
-		rpc_handle_info(fd, packet);
+		rpc_handle_info(fd, (struct rpc_proc_info1 *)packet->data);
 		break;
 	}
 	case RPC_PROC_INTALL: {
@@ -290,6 +285,7 @@ void rpc_handler(void *vfd) {
 
 	while (1) {
 		// wait to recv packets
+		memset(&packet, NULL, sizeof(packet));
 		r = net_recv(fd, &packet, RPC_PACKET_SIZE);
 
 		// check if disconnected

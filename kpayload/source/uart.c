@@ -18,7 +18,7 @@ int uprintf(const char *fmt, ...) {
 	int r = vprintf(fmt, va);
 	va_end(va);
 
-	printf("\r\n");
+	printf("\n");
 
 	mtx_unlock_sleep(&uart_mtx, 0);
 
