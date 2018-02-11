@@ -10,6 +10,7 @@
 #include "jkpayload.h"
 
 #define NULL 0
+#define offsetof(st, m) ((size_t)((char *)&((st *)(0))->m - (char *)0))
 
 // TODO: fix these hacks :/
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))

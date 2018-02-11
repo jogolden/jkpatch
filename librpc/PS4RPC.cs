@@ -37,6 +37,10 @@ namespace librpc
         private static int RPC_PROC_LIST_SIZE = 36; // this is received
         private static int RPC_PROC_INFO1_SIZE = 4;
         private static int RPC_PROC_INFO2_SIZE = 60; // this is received
+        private static int RPC_PROC_INSTALL1_SIZE = 4;
+        private static int RPC_PROC_INSTALL2_SIZE = 12; // this is received
+        private static int RPC_PROC_CALL1_SIZE = 68;
+        private static int RPC_PROC_CALL2_SIZE = 12; // this is received
 
         // status
         private static uint RPC_SUCCESS = 0x80000000;
@@ -47,6 +51,8 @@ namespace librpc
         private static uint RPC_INFO_ERROR = 0x80000005;
         private static uint RPC_INFO_NO_MAP = 0x80000006;
         private static uint RPC_NO_PROC = 0x80000007;
+        private static uint RPC_INSTALL_ERROR = 0x80000008;
+        private static uint RPC_CALL_ERROR = 0x80000009;
 
         private static Dictionary<uint, string> StatusMessages = new Dictionary<uint, string>()
         {
@@ -57,6 +63,8 @@ namespace librpc
             { RPC_LIST_ERROR, "process list error"},
             { RPC_INFO_ERROR, "process information error"},
             { RPC_NO_PROC, "no such process error"},
+            { RPC_INSTALL_ERROR, "could not install rpc" },
+            { RPC_CALL_ERROR, "could not call address" }
         };
 
         private static string GetNullTermString(byte[] data, int offset)
@@ -150,11 +158,8 @@ namespace librpc
                 rs.Write(bytes, 0, bytes.Length);
             }
 
-            byte[] packet = rs.ToArray();
-
+            SendData(rs.ToArray(), length);
             rs.Dispose();
-
-            SendData(packet, length);
         }
         private void SendCMDPacket(RPC_CMDS cmd, int length)
         {
@@ -304,7 +309,7 @@ namespace librpc
                 byte[] nextdata = SubArray(data, RPC_MAX_DATA_LEN, nextlength);
                 WriteMemory(pid, nextaddr, nextdata);
             }
-            else if(data.Length > 0)
+            else if (data.Length > 0)
             {
                 SendCMDPacket(RPC_CMDS.RPC_PROC_WRITE, RPC_PROC_WRITE_SIZE);
                 SendPacketData(RPC_PROC_WRITE_SIZE, pid, address, data.Length);
@@ -383,6 +388,50 @@ namespace librpc
             }
 
             return new ProcessInfo(pid, entries);
+        }
+        public ulong InstallRPC(int pid)
+        {
+            SendCMDPacket(RPC_CMDS.RPC_PROC_INTALL, RPC_PROC_INSTALL1_SIZE);
+            SendPacketData(RPC_PROC_INSTALL1_SIZE, pid);
+            CheckRPCStatus();
+            byte[] data = ReceiveData(RPC_PROC_INSTALL2_SIZE);
+            return BitConverter.ToUInt64(data, 4);
+        }
+        public ulong Call(int pid, ulong rpcstub, ulong address, params object[] args)
+        {
+            SendCMDPacket(RPC_CMDS.RPC_PROC_CALL, RPC_PROC_CALL1_SIZE);
+
+            MemoryStream rs = new MemoryStream();
+            rs.Write(BitConverter.GetBytes(pid), 0, sizeof(int));
+            rs.Write(BitConverter.GetBytes(rpcstub), 0, sizeof(ulong));
+            rs.Write(BitConverter.GetBytes(address), 0, sizeof(ulong));
+
+            int num = 0;
+            foreach (object arg in args)
+            {
+                rs.Write(BitConverter.GetBytes((ulong)arg), 0, sizeof(ulong));
+                num++;
+            }
+
+            if(num > 6)
+            {
+                throw new Exception("librpc: too many call arguments");
+            }
+            else if(num < 6)
+            {
+                for(int i = 0; i < (6 - num); i++)
+                {
+                    rs.Write(BitConverter.GetBytes((ulong)0), 0, sizeof(ulong));
+                }
+            }
+
+            SendData(rs.ToArray(), RPC_PROC_CALL1_SIZE);
+            rs.Dispose();
+
+            CheckRPCStatus();
+
+            byte[] data = ReceiveData(RPC_PROC_CALL2_SIZE);
+            return BitConverter.ToUInt64(data, 4);
         }
 
         // read wrappers

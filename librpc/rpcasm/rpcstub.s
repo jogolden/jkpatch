@@ -7,9 +7,6 @@ DEFAULT REL
 magic: db 'RSTB'
 entry: dq rpcstub
 
-; libkernel: int (*sceKernelUsleep)(unsigned int microseconds);
-sceKernelUsleep: dq 0
-
 ; registers
 rpc_rip: dq 0
 rpc_rdi: dq 0
@@ -35,7 +32,8 @@ rpcstub:
 	mov rdx, qword [rpc_rdx]
 	mov rsi, qword [rpc_rsi]
 	mov rdi, qword [rpc_rdi]
-	call qword [rpc_rip]
+	mov r12, qword [rpc_rip]
+	call r12
 
 	mov qword [rpc_rax], rax
 
@@ -44,10 +42,7 @@ rpcstub:
 	mov byte [rpc_done], 1
 
 rpc_end:
-	; sleep a little
-	mov rdi, 0x8000
-	call qword [sceKernelUsleep]
-
+	; todo: add sleep
 	jmp rpcstub
 	xor eax, eax
 	ret

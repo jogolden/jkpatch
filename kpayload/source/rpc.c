@@ -248,6 +248,135 @@ error:
 	return r;
 }
 
+int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
+	void *stubaddr = NULL;
+	void *stackaddr = NULL;
+	int size = 0;
+	size_t n = 0;
+	int r = 0;
+
+	struct proc *p = proc_find_by_pid(pinstall->pid);
+	if (p) {
+		// allocate rpc stub
+		size = sizeof(rpcstub);
+		size += (PAGE_SIZE - (size % PAGE_SIZE));
+		r = proc_allocate(p, &stubaddr, size);
+		if (r) {
+			rpc_send_status(fd, RPC_INSTALL_ERROR);
+			goto error;
+		}
+
+		// allocate stack for rpc stub
+		r = proc_allocate(p, &stackaddr, 0x8000);
+		if (r) {
+			rpc_send_status(fd, RPC_INSTALL_ERROR);
+			goto error;
+		}
+
+		// write stub
+		r = proc_write_mem(p, stubaddr, sizeof(rpcstub), (void *)rpcstub, &n);
+		if (r) {
+			rpc_send_status(fd, RPC_INSTALL_ERROR);
+			goto error;
+		}
+
+		// patch suword_lwpid
+		// has a check to see if child_tid/parent_tid is in kernel memory, and it in so patch it
+		uint64_t kernbase = getkernbase();
+		uint64_t CR0 = __readcr0();
+		uint16_t *suword_lwpid = (uint16_t *)(kernbase + 0x287074);
+		__writecr0(CR0 & ~CR0_WP);
+		*suword_lwpid = 0x9090;
+		__writecr0(CR0);
+
+		// execute stub
+		struct thread *thr = TAILQ_FIRST(&p->p_threads);
+		uint64_t entry = (uint64_t)stubaddr + *(uint64_t *)(rpcstub + 4);
+		r = create_thread(thr, NULL, (void *)entry, NULL, stackaddr, 0x8000, NULL, NULL, NULL, 0, NULL);
+		if (r) {
+			rpc_send_status(fd, RPC_INSTALL_ERROR);
+			goto error;
+		}
+
+		struct rpc_proc_install2 data;
+		data.pid = pinstall->pid;
+		data.rpcstub = (uint64_t)stubaddr;
+
+		rpc_send_status(fd, RPC_SUCCESS);
+		rpc_send_data(fd, &data, RPC_PROC_INSTALL2_SIZE);
+	} else {
+		rpc_send_status(fd, RPC_NO_PROC);
+		r = 1;
+		goto error;
+	}
+
+error:
+	return r;
+}
+
+int rpc_handle_call(int fd, struct rpc_proc_call1 *pcall) {
+	size_t n = 0;
+	int r = 0;
+
+	uint64_t rpcstub = pcall->rpcstub;
+
+	struct proc *p = proc_find_by_pid(pcall->pid);
+	if (p) {
+		// write registers
+		// these two structures are basically 1:1 (it is hackey but meh)
+		size_t regsize = offsetof(struct rpcstub_header, rpc_rax) - offsetof(struct rpcstub_header, rpc_rip);
+		r = proc_write_mem(p, (void *)(rpcstub + offsetof(struct rpcstub_header, rpc_rip)), regsize, &pcall->rpc_rip, &n);
+		if (r) {
+			rpc_send_status(fd, RPC_CALL_ERROR);
+			r = 1;
+			goto error;
+		}
+
+		// trigger call
+		uint8_t rpc_go = 1;
+		r = proc_write_mem(p, (void *)(rpcstub + offsetof(struct rpcstub_header, rpc_go)), sizeof(rpc_go), &rpc_go, &n);
+		if (r) {
+			rpc_send_status(fd, RPC_CALL_ERROR);
+			r = 1;
+			goto error;
+		}
+
+		// check until done
+		uint8_t rpc_done = 0;
+		while (!rpc_done) {
+			r = proc_read_mem(p, (void *)(rpcstub + offsetof(struct rpcstub_header, rpc_done)), sizeof(rpc_done), &rpc_done, &n);
+			if (r) {
+				rpc_send_status(fd, RPC_CALL_ERROR);
+				r = 1;
+				goto error;
+			}
+		}
+
+		// return value
+		uint64_t rpc_rax = 0;
+		r = proc_read_mem(p, (void *)(rpcstub + offsetof(struct rpcstub_header, rpc_rax)), sizeof(rpc_rax), &rpc_rax, &n);
+		if (r) {
+			rpc_send_status(fd, RPC_CALL_ERROR);
+			r = 1;
+			goto error;
+		}
+
+		struct rpc_proc_call2 data;
+		data.pid = pcall->pid;
+		data.rpc_rax = rpc_rax;
+
+		rpc_send_status(fd, RPC_SUCCESS);
+		rpc_send_data(fd, &data, RPC_PROC_CALL2_SIZE);
+	} else {
+		rpc_send_status(fd, RPC_NO_PROC);
+		r = 1;
+		goto error;
+	}
+
+error:
+	return r;
+}
+
 int rpc_cmd_handler(int fd, struct rpc_packet *packet) {
 	//uprintf("packet cmd %X\n", packet->cmd);
 
@@ -273,11 +402,11 @@ int rpc_cmd_handler(int fd, struct rpc_packet *packet) {
 		break;
 	}
 	case RPC_PROC_INTALL: {
-		// todo
+		rpc_handle_install(fd, (struct rpc_proc_install1 *)packet->data);
 		break;
 	}
 	case RPC_PROC_CALL: {
-		// todo
+		rpc_handle_call(fd, (struct rpc_proc_call1 *)packet->data);
 		break;
 	}
 	case RPC_END: {

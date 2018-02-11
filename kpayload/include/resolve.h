@@ -27,6 +27,7 @@ size_t (*strlen)(const char *str);
 void (*pause)(const char *wmesg, int timo);
 int (*kthread_add)(void (*func)(void *), void *arg, struct proc *procp, struct thread **newtdpp, int flags, int pages, const char *fmt, ...);
 void (*kthread_exit)(void);
+int (*create_thread)(struct thread * td, uint64_t ctx, void (*start_func)(void *), void *arg, char *stack_base, size_t stack_size, char *tls_base, long * child_tid, long * parent_tid, uint64_t flags, uint64_t rtp);
 int (*proc_rwmem)(struct proc *p, struct uio *uio);
 void (*sx_init_flags)(struct sx *sx, const char *description, int opts);
 void (*sx_xlock)(struct sx *sx);
@@ -42,10 +43,10 @@ void (*kern_reboot)(int magic);
 
 // virtual memory
 struct vmspace *(*vmspace_acquire_ref)(struct proc *p);
-void (*vm_map_lock_read)(struct vm_map *map);
-int (*vm_map_lookup_entry)(struct vm_map *map, uint64_t address, struct vm_map_entry **entries);
-void (*vm_map_unlock_read)(struct vm_map *map);
 void (*vmspace_free)(struct vmspace *vm);
+void (*vm_map_lock_read)(struct vm_map *map);
+void (*vm_map_unlock_read)(struct vm_map *map);
+int (*vm_map_lookup_entry)(struct vm_map *map, uint64_t address, struct vm_map_entry **entries);
 
 // sce
 int (*sceSblServiceMailbox)(unsigned long service_id, uint8_t request[SBL_MSG_SERVICE_MAILBOX_MAX_SIZE], void *response);

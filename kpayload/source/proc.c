@@ -142,3 +142,47 @@ inline int proc_read_mem(struct proc *p, void *ptr, size_t size, void *data, siz
 inline int proc_write_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n) {
 	return proc_rw_mem(p, ptr, size, data, n, 1);
 }
+
+int proc_allocate(struct proc *p, void **address, size_t size) {
+	uint64_t addr = NULL;
+	int r = 0;
+
+	uint64_t kernbase = getkernbase();
+
+	if (!address) {
+		r = 1;
+		goto error;
+	}
+
+	// 0x440B60 vm_map_findspace
+	int (*vm_map_findspace)(struct vm_map * map, uint64_t start, uint64_t length, uint64_t *addr) = (void *)(kernbase + 0x440B60);
+	// 0x43EEC0 vm_map_insert
+	int (*vm_map_insert)(struct vm_map * map, uint64_t object, uint64_t offset, uint64_t start, uint64_t end, int prot, int max, int cow) = (void *)(kernbase + 0x43EEC0);
+	// 0x43DDA0 vm_map_lock
+	void (*vm_map_lock)(struct vm_map * map) = (void *)(kernbase + 0x43DDA0);
+	// 0x43DE10 vm_map_unlock
+	void (*vm_map_unlock)(struct vm_map * map) = (void *)(kernbase + 0x43DE10);
+
+	struct vmspace *vm = p->p_vmspace;
+	struct vm_map *map = &vm->vm_map;
+
+	vm_map_lock(map);
+
+	r = vm_map_findspace(map, NULL, size, &addr);
+	if (r) {
+		vm_map_unlock(map);
+		r = 1;
+		goto error;
+	}
+
+	r = vm_map_insert(map, NULL, NULL, addr, addr + size, VM_PROT_ALL, VM_PROT_ALL, 0);
+
+	vm_map_unlock(map);
+
+error:
+	if(address) {
+		*address = (void *)addr;
+	}
+
+	return r;
+}

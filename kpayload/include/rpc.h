@@ -5,11 +5,9 @@
 #define _RPC_H
 
 #include "jkpayload.h"
+#include "../librpc/rpcasm/rpcasm.h"
 #include "net.h"
 #include "proc.h"
-
-// todo: clean up networking and code
-// todo: write better c style code
 
 // network
 #define RPC_PORT			733
@@ -40,6 +38,8 @@
 #define RPC_INFO_ERROR			0x80000005
 #define RPC_INFO_NO_MAP			0x80000006
 #define RPC_NO_PROC				0x80000007
+#define RPC_INSTALL_ERROR		0x80000008
+#define RPC_CALL_ERROR			0x80000009
 
 struct rpc_packet {
 	uint32_t magic;
@@ -97,13 +97,38 @@ struct rpc_proc_info2 {
 #define RPC_PROC_INFO1_SIZE 4
 #define RPC_PROC_INFO2_SIZE 60
 
-struct handler_arg {
-	uint32_t fd;
-};
+struct rpc_proc_install1 {
+	uint32_t pid;
+} __attribute__((packed));
 
-//int rpc_cmd_handler(int fd, struct rpc_packet *packet)
-//int rpc_handler(struct handler_arg *arg);
-//void rpc_server_thread(void *arg);
+struct rpc_proc_install2 {
+	uint32_t pid;
+	uint64_t rpcstub;
+} __attribute__((packed));
+
+#define RPC_PROC_INSTALL1_SIZE 4
+#define RPC_PROC_INSTALL2_SIZE 12
+
+struct rpc_proc_call1 {
+	uint32_t pid;
+	uint64_t rpcstub;
+	uint64_t rpc_rip;
+	uint64_t rpc_rdi;
+	uint64_t rpc_rsi;
+	uint64_t rpc_rdx;
+	uint64_t rpc_rcx;
+	uint64_t rpc_r8;
+	uint64_t rpc_r9;
+} __attribute__((packed));
+
+struct rpc_proc_call2 {
+	uint32_t pid;
+	uint64_t rpc_rax;
+} __attribute__((packed));
+
+#define RPC_PROC_CALL1_SIZE 68
+#define RPC_PROC_CALL2_SIZE 12
+
 void init_rpc();
 
 #endif

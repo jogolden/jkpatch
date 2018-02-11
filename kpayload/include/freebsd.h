@@ -206,6 +206,8 @@ TYPE_FIELD(struct vm_map_entry header, 0);
 TYPE_FIELD(struct sx lock, 0xB8);
 TYPE_FIELD(struct mtx system_mtx, 0xD8);
 TYPE_FIELD(int nentries, 0xF8);
+TYPE_FIELD(int timestamp, 0x108);
+TYPE_FIELD(char system_map, 0x10D);
 TYPE_FIELD(struct vm_map_entry *root, 0x110);
 TYPE_END();
 
@@ -246,10 +248,13 @@ struct filedesc {
 
 TYPE_BEGIN(struct proc, 0x800); // XXX: random, don't use directly without fixing it
 TYPE_FIELD(struct proc *p_forw, 0);
+TYPE_FIELD(TAILQ_HEAD(, thread) p_threads, 0x10);
 TYPE_FIELD(struct ucred *p_ucred, 0x40);
 TYPE_FIELD(struct filedesc *p_fd, 0x48);
 TYPE_FIELD(int pid, 0xB0);
+TYPE_FIELD(struct vmspace *p_vmspace, 0x168);
 TYPE_FIELD(char p_comm[32], 0x3F0);
+TYPE_FIELD(int p_numthreads, 0x978);
 TYPE_END();
 
 
