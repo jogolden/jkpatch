@@ -208,10 +208,10 @@ namespace librpc
 
         public void Connect()
         {
-            if (!connected) //checking for connection to fix issues when refreshing process list and trying to re-connect
+            if (!connected) {
                 sock.Connect(enp);
+            }
             connected = true;
-            SendPacketData(0, 5);
         }
         public void Disconnect()
         {
