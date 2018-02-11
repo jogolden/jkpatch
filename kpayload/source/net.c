@@ -7,7 +7,7 @@
 
 // specific to 4.05, may change in other updates
 // the kernel functions copyin and copyout check if the src/dst address is in kernel space
-void disable_copy_checks() {
+void net_disable_copy_checks() {
 	uint64_t kernbase = getkernbase();
 	uint64_t CR0 = __readcr0();
 
@@ -25,7 +25,7 @@ void disable_copy_checks() {
 	__writecr0(CR0);
 }
 
-void enable_copy_checks() {
+void net_enable_copy_checks() {
 	uint64_t kernbase = getkernbase();
 	uint64_t CR0 = __readcr0();
 
@@ -84,11 +84,7 @@ int net_bind(int sockfd, struct sockaddr *addr, int addrlen) {
 	uap.name = (uint64_t)addr;
 	uap.namelen = addrlen;
 
-	disable_copy_checks();
-	int r = sys_bind(td, &uap);
-	enable_copy_checks();
-
-	return r;
+	return sys_bind(td, &uap);
 }
 
 int net_listen(int sockfd, int backlog) {
@@ -107,9 +103,7 @@ int net_listen(int sockfd, int backlog) {
 	uap.sockfd = sockfd;
 	uap.backlog = backlog;
 
-	int r = sys_listen(td, &uap);
-
-	return r;
+	return sys_listen(td, &uap);
 }
 
 int net_accept(int sockfd, struct sockaddr *addr, int *addrlen) {
@@ -130,9 +124,7 @@ int net_accept(int sockfd, struct sockaddr *addr, int *addrlen) {
 	uap.name = (uint64_t)addr;
 	uap.namelen = (uint64_t)addrlen;
 
-	disable_copy_checks();
 	sys_accept(td, &uap);
-	enable_copy_checks();
 
 	return td->td_retval[0];
 }
@@ -155,9 +147,7 @@ int net_recv(int fd, void *buf, uint64_t len) {
 	uap.buf = (uint64_t)buf;
 	uap.nbyte = len;
 
-	disable_copy_checks();
 	sys_read(td, &uap);
-	enable_copy_checks();
 
 	return td->td_retval[0];
 }
@@ -180,9 +170,7 @@ int net_send(int fd, const void *buf, uint64_t len) {
 	uap.buf = (uint64_t)buf;
 	uap.nbyte = len;
 
-	disable_copy_checks();
 	sys_write(td, &uap);
-	enable_copy_checks();
 
 	return td->td_retval[0];
 }
@@ -209,11 +197,7 @@ int net_setsockopt(int s, int level, int optname, const void *optval, uint32_t o
 	uap.optval = (uint64_t)optval;
 	uap.optlen = optlen;
 
-	disable_copy_checks();
-	int r = sys_setsockopt(td, &uap);
-	enable_copy_checks();
-
-	return r;
+	return sys_setsockopt(td, &uap);
 }
 
 int net_close(int fd) {

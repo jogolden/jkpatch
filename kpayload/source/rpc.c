@@ -3,16 +3,7 @@
 
 #include "rpc.h"
 
-int rpc_send_status(int fd, uint32_t status) {
-	uint32_t d = status;
-	if (net_send(fd, &d, sizeof(uint32_t)) == sizeof(uint32_t)) {
-		return 0;
-	} else {
-		return 1;
-	}
-}
-
-int rpc_send_data(int fd, uint8_t *data, int length) {
+int rpc_send_data(int fd, void *data, int length) {
 	uint32_t left = length;
 	uint32_t offset = 0;
 	uint32_t sent = 0;
@@ -29,7 +20,36 @@ int rpc_send_data(int fd, uint8_t *data, int length) {
 		}
 	}
 
-	return 0;
+	return offset;
+}
+
+int rpc_recv_data(int fd, void *data, int length) {
+	uint32_t left = length;
+	uint32_t offset = 0;
+	uint32_t recv = 0;
+
+	while (left > 0) {
+		if (left > RPC_MAX_DATA_LEN) {
+			recv = net_recv(fd, data + offset, RPC_MAX_DATA_LEN);
+			offset += recv;
+			left -= recv;
+		} else {
+			recv = net_recv(fd, data + offset, left);
+			offset += recv;
+			left -= recv;
+		}
+	}
+
+	return offset;
+}
+
+int rpc_send_status(int fd, uint32_t status) {
+	uint32_t d = status;
+	if (rpc_send_data(fd, &d, sizeof(uint32_t)) == sizeof(uint32_t)) {
+		return 0;
+	} else {
+		return 1;
+	}
 }
 
 int rpc_handle_read(int fd, struct rpc_proc_read *pread) {
@@ -57,7 +77,7 @@ int rpc_handle_read(int fd, struct rpc_proc_read *pread) {
 		} else {
 			// send back data
 			rpc_send_status(fd, RPC_SUCCESS);
-			net_send(fd, data, length);
+			rpc_send_data(fd, data, length);
 		}
 	} else {
 		rpc_send_status(fd, RPC_NO_PROC);
@@ -91,8 +111,7 @@ int rpc_handle_write(int fd, struct rpc_proc_write *pwrite) {
 		rpc_send_status(fd, RPC_SUCCESS);
 
 		data = (uint8_t *)alloc(length);
-		memset(data, NULL, length);
-		net_recv(fd, data, length);
+		rpc_recv_data(fd, data, length);
 
 		r = proc_write_mem(p, (void *)pwrite->address, (size_t)length, data, &n);
 		if (r || n != length) {
@@ -155,7 +174,7 @@ int rpc_handle_list(int fd, struct rpc_packet *packet) {
 	}
 
 	rpc_send_status(fd, RPC_SUCCESS);
-	net_send(fd, &count, sizeof(uint32_t));
+	rpc_send_data(fd, &count, sizeof(uint32_t));
 	rpc_send_data(fd, data, size);
 
 error:
@@ -214,7 +233,7 @@ int rpc_handle_info(int fd, struct rpc_proc_info1 *pinfo) {
 	}
 
 	rpc_send_status(fd, RPC_SUCCESS);
-	net_send(fd, &count, sizeof(uint32_t));
+	rpc_send_data(fd, &count, sizeof(uint32_t));
 	rpc_send_data(fd, data, size);
 
 error:
@@ -286,7 +305,7 @@ void rpc_handler(void *vfd) {
 	while (1) {
 		// wait to recv packets
 		memset(&packet, NULL, sizeof(packet));
-		r = net_recv(fd, &packet, RPC_PACKET_SIZE);
+		r = rpc_recv_data(fd, &packet, RPC_PACKET_SIZE);
 
 		// check if disconnected
 		if (r <= 0) {
@@ -317,7 +336,7 @@ void rpc_handler(void *vfd) {
 			}
 
 			// recv data
-			r = net_recv(fd, data, length);
+			r = rpc_recv_data(fd, data, length);
 			if (!r) {
 				goto error;
 			}
@@ -412,6 +431,7 @@ error:
 }
 
 void init_rpc() {
+	net_disable_copy_checks();
 	kthread_add(rpc_server_thread, 0, 0, 0, 0, 0, "rpcserver");
 	uprintf("[jkpatch] started rpc server!");
 }

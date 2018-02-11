@@ -99,11 +99,10 @@ int proc_rw_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n, i
 	struct thread *td = curthread();
 	struct iovec iov;
 	struct uio uio;
-	int ret = 0;
+	int r = 0;
 
 	if (!p) {
-		ret = 1;
-		goto error;
+		return 1;
 	}
 
 	if (size == 0) {
@@ -111,8 +110,7 @@ int proc_rw_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n, i
 			*n = 0;
 		}
 
-		ret = 0;
-		goto error;
+		return 0;
 	}
 
 	memset(&iov, NULL, sizeof(iov));
@@ -128,14 +126,13 @@ int proc_rw_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n, i
 	uio.uio_rw = write ? UIO_WRITE : UIO_READ;
 	uio.uio_td = td;
 
-	ret = proc_rwmem(p, &uio);
+	r = proc_rwmem(p, &uio);
 
 	if (n) {
 		*n = (size_t)((uint64_t)size - uio.uio_resid);
 	}
 
-error:
-	return ret;
+	return r;
 }
 
 inline int proc_read_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n) {

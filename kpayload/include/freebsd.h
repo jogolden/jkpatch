@@ -115,6 +115,37 @@ struct qm_trace {
 	int prevline;
 };
 
+struct trapframe {
+	uint64_t tf_rdi;	// 0x00
+	uint64_t tf_rsi;	// 0x08
+	uint64_t tf_rdx;	// 0x10
+	uint64_t tf_rcx;	// 0x18
+	uint64_t tf_r8;		// 0x20
+	uint64_t tf_r9;		// 0x28
+	uint64_t tf_rax;	// 0x30
+	uint64_t tf_rbx;	// 0x38
+	uint64_t tf_rbp;	// 0x40
+	uint64_t tf_r10;	// 0x48
+	uint64_t tf_r11;	// 0x50
+	uint64_t tf_r12;	// 0x58
+	uint64_t tf_r13;	// 0x60
+	uint64_t tf_r14;	// 0x68
+	uint64_t tf_r15;	// 0x70
+	uint32_t tf_trapno;	// 0x78
+	uint16_t tf_fs;		// 0x7C
+	uint16_t tf_gs;		// 0x7E
+	uint64_t tf_addr;	// 0x80
+	uint32_t tf_flags;	// 0x88
+	uint16_t tf_es;		// 0x8C
+	uint16_t tf_ds;		// 0x8E
+	uint64_t tf_err;	// 0x90
+	uint64_t tf_rip;	// 0x98
+	uint64_t tf_cs;		// 0xA0
+	uint64_t tf_rflags;	// 0xA8
+	uint64_t tf_rsp;	// 0xB0
+	uint64_t tf_ss;		// 0xB8
+};
+
 enum uio_rw {
 	UIO_READ,
 	UIO_WRITE

@@ -109,6 +109,8 @@ struct sockaddr_in {
 // kernel networking is tedious in freebsd, I do not want to deal with all the so* functions (never mind accepting a new connection...)
 // I plan on actually just calling the system calls themselves with current thread and structures filled out with proper arguments
 
+void net_disable_copy_checks();
+void net_enable_copy_checks();
 int net_socket(int domain, int type, int protocol);
 int net_bind(int sockfd, struct sockaddr *addr, int addrlen);
 int net_listen(int sockfd, int backlog);
