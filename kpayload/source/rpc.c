@@ -446,24 +446,24 @@ void rpc_handler(void *vfd) {
 
 		// check if disconnected
 		if (r <= 0) {
-			goto cont;
+			goto contin;
 		}
 
 		// invalid packet
 		if (packet.magic != RPC_PACKET_MAGIC) {
-			goto cont;
+			goto contin;
 		}
 
 		// mismatch received size
 		if (r != RPC_PACKET_SIZE) {
-			goto cont;
+			goto contin;
 		}
 
 		length = packet.datalen;
 		if (length) {
 			// check
 			if (length > RPC_MAX_DATA_LEN) {
-				goto cont;
+				goto contin;
 			}
 
 			// allocate data
@@ -497,8 +497,8 @@ void rpc_handler(void *vfd) {
 			goto error;
 		}
 
-cont:
-		kern_yield(-1);
+contin:
+		pause("p", 1);
 	}
 
 error:
@@ -567,11 +567,11 @@ void rpc_server_thread(void *arg) {
 			// add thread to handle connection
 			struct thread *newtd = NULL;
 			kthread_add(rpc_handler, (void *)((uint64_t)newfd), 0, &newtd, 0x20000, 0, "rpchandler");
-			sched_prio(newtd, 150);
+			sched_prio(newtd, 120);
 			sched_add(newtd, 0);
 		}
 
-		kern_yield(-1);
+		pause("p", 1);
 	}
 error:
 	if (fd > -1) {
@@ -586,7 +586,7 @@ void init_rpc() {
 
 	struct thread *newtd = NULL;
 	kthread_add(rpc_server_thread, 0, 0, &newtd, 0x20000, 0, "rpcserver");
-	sched_prio(newtd, 180);
+	sched_prio(newtd, 120);
 	sched_add(newtd, 0);
 
 	uprintf("[jkpatch] started rpc server!");
