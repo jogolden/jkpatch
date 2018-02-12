@@ -24,6 +24,9 @@
 #define __sched_add								0x1D0240
 #define __kern_yield							0x08AAC0
 #define __create_thread							0x1D3700
+#define __kproc_create							0x1C92F0
+#define __kthread_set_affinity					0x1CA1D0
+#define __kproc_kthread_add						0x1CA070
 #define __sx_init_flags							0x27AAF0
 #define __sx_xlock								0x27AC20
 #define __sx_xunlock							0x27ADB0

@@ -3,6 +3,8 @@
 
 #include "rpc.h"
 
+struct proc *krpcproc;
+
 int rpc_send_data(int fd, void *data, int length) {
 	uint32_t left = length;
 	uint32_t offset = 0;
@@ -31,24 +33,15 @@ int rpc_recv_data(int fd, void *data, int length) {
 	while (left > 0) {
 		if (left > RPC_MAX_DATA_LEN) {
 			recv = net_recv(fd, data + offset, RPC_MAX_DATA_LEN);
-			if(!recv) {
-				goto end;
-			}
-
 			offset += recv;
 			left -= recv;
 		} else {
 			recv = net_recv(fd, data + offset, left);
-			if(!recv) {
-				goto end;
-			}
-
 			offset += recv;
 			left -= recv;
 		}
 	}
 
-end:
 	return offset;
 }
 
@@ -361,6 +354,17 @@ int rpc_handle_call(int fd, struct rpc_proc_call1 *pcall) {
 			}
 		}
 
+		// write done
+		rpc_done = 0;
+		while (!rpc_done) {
+		r = proc_write_mem(p, (void *)(rpcstub + offsetof(struct rpcstub_header, rpc_done)), sizeof(rpc_done), &rpc_done, &n);
+		if (r) {
+				rpc_send_status(fd, RPC_CALL_ERROR);
+				r = 1;
+				goto error;
+			}
+		}
+
 		// return value
 		uint64_t rpc_rax = 0;
 		r = proc_read_mem(p, (void *)(rpcstub + offsetof(struct rpcstub_header, rpc_rax)), sizeof(rpc_rax), &rpc_rax, &n);
@@ -438,6 +442,8 @@ void rpc_handler(void *vfd) {
 	uint32_t length = 0;
 	int r = 0;
 
+	kthread_set_affinity("rpchandler", 140, 0x200);
+
 	//uprintf("rpc_handler fd %lli", fd);
 
 	while (1) {
@@ -446,24 +452,24 @@ void rpc_handler(void *vfd) {
 
 		// check if disconnected
 		if (r <= 0) {
-			goto contin;
+			goto error;
 		}
 
 		// invalid packet
 		if (packet.magic != RPC_PACKET_MAGIC) {
-			goto contin;
+			continue;
 		}
 
 		// mismatch received size
 		if (r != RPC_PACKET_SIZE) {
-			goto contin;
+			continue;
 		}
 
 		length = packet.datalen;
 		if (length) {
 			// check
 			if (length > RPC_MAX_DATA_LEN) {
-				goto contin;
+				continue;
 			}
 
 			// allocate data
@@ -496,9 +502,6 @@ void rpc_handler(void *vfd) {
 		if (r) {
 			goto error;
 		}
-
-contin:
-		pause("p", 1);
 	}
 
 error:
@@ -515,6 +518,8 @@ void rpc_server_thread(void *arg) {
 	int newfd = -1;
 	int r = 0;
 
+	kthread_set_affinity("rpcserver", 140, 0x200);
+
 	fd = net_socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
 		goto error;
@@ -527,10 +532,6 @@ void rpc_server_thread(void *arg) {
 	// no delay to merge packets
 	optval = 1;
 	net_setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (void *)&optval, sizeof(int));
-
-	// non blocking
-	optval = 1;
-	net_setsockopt(newfd, SOL_SOCKET, SO_NBIO, (void *)&optval, sizeof(int));
 
 	memset(&servaddr, NULL, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
@@ -560,18 +561,9 @@ void rpc_server_thread(void *arg) {
 			optval = 1;
 			net_setsockopt(newfd, IPPROTO_TCP, TCP_NODELAY, (void *)&optval, sizeof(int));
 
-			// non blocking
-			optval = 1;
-			net_setsockopt(newfd, SOL_SOCKET, SO_NBIO, (void *)&optval, sizeof(int));
-
 			// add thread to handle connection
-			struct thread *newtd = NULL;
-			kthread_add(rpc_handler, (void *)((uint64_t)newfd), 0, &newtd, 0x20000, 0, "rpchandler");
-			sched_prio(newtd, 120);
-			sched_add(newtd, 0);
+			kproc_kthread_add(rpc_handler, (void *)((uint64_t)newfd), &krpcproc, NULL, NULL, 0, "rpcproc", "rpchandler");
 		}
-
-		pause("p", 1);
 	}
 error:
 	if (fd > -1) {
@@ -584,10 +576,7 @@ error:
 void init_rpc() {
 	net_disable_copy_checks();
 
-	struct thread *newtd = NULL;
-	kthread_add(rpc_server_thread, 0, 0, &newtd, 0x20000, 0, "rpcserver");
-	sched_prio(newtd, 120);
-	sched_add(newtd, 0);
+	kproc_create(rpc_server_thread, NULL, &krpcproc, NULL, 0, "rpcproc");
 
 	uprintf("[jkpatch] started rpc server!");
 }

@@ -129,6 +129,8 @@ struct rpc_proc_call2 {
 #define RPC_PROC_CALL1_SIZE 68
 #define RPC_PROC_CALL2_SIZE 12
 
+extern struct proc *krpcproc;
+
 void init_rpc();
 
 #endif
