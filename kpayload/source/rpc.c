@@ -431,6 +431,8 @@ void rpc_handler(void *vfd) {
 
 	//uprintf("rpc_handler fd %lli", fd);
 
+	sched_prio(curthread(), 255);
+
 	while (1) {
 		// wait to recv packets
 		memset(&packet, NULL, sizeof(packet));
@@ -505,6 +507,8 @@ void rpc_server_thread(void *arg) {
 	int fd = -1;
 	int newfd = -1;
 	int r = 0;
+
+	sched_prio(curthread(), 255);
 
 	fd = net_socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {

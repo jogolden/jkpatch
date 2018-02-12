@@ -20,6 +20,7 @@
 #define __pause									0x08A7A0
 #define __kthread_add							0x1C9890
 #define __kthread_exit							0x1C9B60
+#define __sched_prio							0x1CFEF0
 #define __create_thread							0x1D3700
 #define __sx_init_flags							0x27AAF0
 #define __sx_xlock								0x27AC20

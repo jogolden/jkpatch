@@ -27,6 +27,7 @@ size_t (*strlen)(const char *str);
 void (*pause)(const char *wmesg, int timo);
 int (*kthread_add)(void (*func)(void *), void *arg, struct proc *procp, struct thread **newtdpp, int flags, int pages, const char *fmt, ...);
 void (*kthread_exit)(void);
+void (*sched_prio)(struct thread *td, uint16_t prio);
 int (*create_thread)(struct thread * td, uint64_t ctx, void (*start_func)(void *), void *arg, char *stack_base, size_t stack_size, char *tls_base, long * child_tid, long * parent_tid, uint64_t flags, uint64_t rtp);
 int (*proc_rwmem)(struct proc *p, struct uio *uio);
 void (*sx_init_flags)(struct sx *sx, const char *description, int opts);

@@ -263,6 +263,7 @@ TYPE_FIELD(struct proc *td_proc, 8);
 TYPE_FIELD(struct ucred *td_ucred, 0x130);
 TYPE_FIELD(char td_name[32], 0x284);
 TYPE_FIELD(uint64_t td_retval[2], 0x398);
+TYPE_FIELD(uint16_t td_priority, 0x380);
 TYPE_END();
 
 static inline struct thread *curthread(void) {
