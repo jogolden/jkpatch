@@ -70,6 +70,7 @@
 #define	SO_BINTIME		0x2000		/* timestamp received dgram traffic */
 #define	SO_NO_OFFLOAD	0x4000		/* socket cannot be offloaded */
 #define	SO_NO_DDP		0x8000		/* disable direct data placement */
+#define SO_NBIO			0x1200
 
 #define TCP_NODELAY     1       /* don't delay send to coalesce packets */
 #define TCP_MAXSEG      2       /* set maximum segment size */

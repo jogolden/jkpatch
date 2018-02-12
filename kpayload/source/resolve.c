@@ -23,6 +23,8 @@ void resolve(uint64_t kernbase) {
 	r(kthread_add, __kthread_add);
 	r(kthread_exit, __kthread_exit);
 	r(sched_prio, __sched_prio);
+	r(sched_add, __sched_add);
+	r(kern_yield, __kern_yield);
 	r(create_thread, __create_thread);
 	r(proc_rwmem, __proc_rwmem);
 	r(sx_init_flags, __sx_init_flags);

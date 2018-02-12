@@ -31,15 +31,24 @@ int rpc_recv_data(int fd, void *data, int length) {
 	while (left > 0) {
 		if (left > RPC_MAX_DATA_LEN) {
 			recv = net_recv(fd, data + offset, RPC_MAX_DATA_LEN);
+			if(!recv) {
+				goto end;
+			}
+
 			offset += recv;
 			left -= recv;
 		} else {
 			recv = net_recv(fd, data + offset, left);
+			if(!recv) {
+				goto end;
+			}
+
 			offset += recv;
 			left -= recv;
 		}
 	}
 
+end:
 	return offset;
 }
 
@@ -431,33 +440,30 @@ void rpc_handler(void *vfd) {
 
 	//uprintf("rpc_handler fd %lli", fd);
 
-	sched_prio(curthread(), 255);
-
 	while (1) {
 		// wait to recv packets
-		memset(&packet, NULL, sizeof(packet));
 		r = rpc_recv_data(fd, &packet, RPC_PACKET_SIZE);
 
 		// check if disconnected
 		if (r <= 0) {
-			goto error;
+			goto cont;
 		}
 
 		// invalid packet
 		if (packet.magic != RPC_PACKET_MAGIC) {
-			continue;
+			goto cont;
 		}
 
 		// mismatch received size
 		if (r != RPC_PACKET_SIZE) {
-			continue;
+			goto cont;
 		}
 
 		length = packet.datalen;
 		if (length) {
 			// check
 			if (length > RPC_MAX_DATA_LEN) {
-				continue;
+				goto cont;
 			}
 
 			// allocate data
@@ -491,7 +497,8 @@ void rpc_handler(void *vfd) {
 			goto error;
 		}
 
-		//pause("p", 15);
+cont:
+		kern_yield(-1);
 	}
 
 error:
@@ -508,8 +515,6 @@ void rpc_server_thread(void *arg) {
 	int newfd = -1;
 	int r = 0;
 
-	sched_prio(curthread(), 255);
-
 	fd = net_socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
 		goto error;
@@ -522,6 +527,10 @@ void rpc_server_thread(void *arg) {
 	// no delay to merge packets
 	optval = 1;
 	net_setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (void *)&optval, sizeof(int));
+
+	// non blocking
+	optval = 1;
+	net_setsockopt(newfd, SOL_SOCKET, SO_NBIO, (void *)&optval, sizeof(int));
 
 	memset(&servaddr, NULL, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
@@ -540,20 +549,29 @@ void rpc_server_thread(void *arg) {
 		// accept connection
 		newfd = net_accept(fd, NULL, NULL);
 
-		// the socket will most likley inherit such properties below, but to make sure I will set them
+		if (newfd > -1) {
+			// the socket will most likley inherit such properties below, but to make sure I will set them
 
-		// set it to not generate SIGPIPE
-		int optval = 1;
-		net_setsockopt(newfd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(int));
+			// set it to not generate SIGPIPE
+			int optval = 1;
+			net_setsockopt(newfd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(int));
 
-		// no delay to merge packets
-		optval = 1;
-		net_setsockopt(newfd, IPPROTO_TCP, TCP_NODELAY, (void *)&optval, sizeof(int));
+			// no delay to merge packets
+			optval = 1;
+			net_setsockopt(newfd, IPPROTO_TCP, TCP_NODELAY, (void *)&optval, sizeof(int));
 
-		// add thread to handle connection
-		kthread_add(rpc_handler, (void *)((uint64_t)newfd), 0, 0, 0, 0, "rpchandler");
+			// non blocking
+			optval = 1;
+			net_setsockopt(newfd, SOL_SOCKET, SO_NBIO, (void *)&optval, sizeof(int));
 
-		pause("p", 1000);
+			// add thread to handle connection
+			struct thread *newtd = NULL;
+			kthread_add(rpc_handler, (void *)((uint64_t)newfd), 0, &newtd, 0x20000, 0, "rpchandler");
+			sched_prio(newtd, 150);
+			sched_add(newtd, 0);
+		}
+
+		kern_yield(-1);
 	}
 error:
 	if (fd > -1) {
@@ -565,6 +583,11 @@ error:
 
 void init_rpc() {
 	net_disable_copy_checks();
-	kthread_add(rpc_server_thread, 0, 0, 0, 0, 0, "rpcserver");
+
+	struct thread *newtd = NULL;
+	kthread_add(rpc_server_thread, 0, 0, &newtd, 0x20000, 0, "rpcserver");
+	sched_prio(newtd, 180);
+	sched_add(newtd, 0);
+
 	uprintf("[jkpatch] started rpc server!");
 }

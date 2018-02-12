@@ -259,6 +259,7 @@ TYPE_END();
 
 
 TYPE_BEGIN(struct thread, 0x3D8); // XXX: random, don't use directly without fixing it
+TYPE_FIELD(struct mtx *volatile td_lock, 0);
 TYPE_FIELD(struct proc *td_proc, 8);
 TYPE_FIELD(struct ucred *td_ucred, 0x130);
 TYPE_FIELD(char td_name[32], 0x284);
