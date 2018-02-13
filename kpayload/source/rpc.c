@@ -356,13 +356,11 @@ int rpc_handle_call(int fd, struct rpc_proc_call1 *pcall) {
 
 		// write done
 		rpc_done = 0;
-		while (!rpc_done) {
 		r = proc_write_mem(p, (void *)(rpcstub + offsetof(struct rpcstub_header, rpc_done)), sizeof(rpc_done), &rpc_done, &n);
 		if (r) {
-				rpc_send_status(fd, RPC_CALL_ERROR);
-				r = 1;
-				goto error;
-			}
+			rpc_send_status(fd, RPC_CALL_ERROR);
+			r = 1;
+			goto error;
 		}
 
 		// return value
@@ -447,12 +445,15 @@ void rpc_handler(void *vfd) {
 	//uprintf("rpc_handler fd %lli", fd);
 
 	while (1) {
+		kthread_suspend_check();
+
 		// wait to recv packets
 		r = rpc_recv_data(fd, &packet, RPC_PACKET_SIZE);
 
 		// check if disconnected
-		if (r <= 0) {
-			goto error;
+		if (!r) {
+			pause("p", 75);
+			continue;
 		}
 
 		// invalid packet
@@ -525,14 +526,6 @@ void rpc_server_thread(void *arg) {
 		goto error;
 	}
 
-	// set it to not generate SIGPIPE
-	int optval = 1;
-	net_setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(int));
-
-	// no delay to merge packets
-	optval = 1;
-	net_setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (void *)&optval, sizeof(int));
-
 	memset(&servaddr, NULL, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_addr.s_addr = INADDR_ANY;
@@ -547,12 +540,12 @@ void rpc_server_thread(void *arg) {
 	}
 
 	while (1) {
+		kthread_suspend_check();
+
 		// accept connection
 		newfd = net_accept(fd, NULL, NULL);
 
 		if (newfd > -1) {
-			// the socket will most likley inherit such properties below, but to make sure I will set them
-
 			// set it to not generate SIGPIPE
 			int optval = 1;
 			net_setsockopt(newfd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(int));
@@ -560,6 +553,11 @@ void rpc_server_thread(void *arg) {
 			// no delay to merge packets
 			optval = 1;
 			net_setsockopt(newfd, IPPROTO_TCP, TCP_NODELAY, (void *)&optval, sizeof(int));
+
+			// set socket timeout
+			struct timeval tv;
+			tv.tv_usec = 50000;
+			net_setsockopt(newfd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
 
 			// add thread to handle connection
 			kproc_kthread_add(rpc_handler, (void *)((uint64_t)newfd), &krpcproc, NULL, NULL, 0, "rpcproc", "rpchandler");

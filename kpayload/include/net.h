@@ -71,6 +71,14 @@
 #define	SO_NO_OFFLOAD	0x4000		/* socket cannot be offloaded */
 #define	SO_NO_DDP		0x8000		/* disable direct data placement */
 #define SO_NBIO			0x1200
+#define	SO_SNDBUF	0x1001		/* send buffer size */
+#define	SO_RCVBUF	0x1002		/* receive buffer size */
+#define	SO_SNDLOWAT	0x1003		/* send low-water mark */
+#define	SO_RCVLOWAT	0x1004		/* receive low-water mark */
+#define	SO_SNDTIMEO	0x1005		/* send timeout */
+#define	SO_RCVTIMEO	0x1006		/* receive timeout */
+#define	SO_ERROR	0x1007		/* get error status and clear */
+#define	SO_TYPE		0x1008		/* get socket type */
 
 #define TCP_NODELAY     1       /* don't delay send to coalesce packets */
 #define TCP_MAXSEG      2       /* set maximum segment size */

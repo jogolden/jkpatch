@@ -146,6 +146,11 @@ struct trapframe {
 	uint64_t tf_ss;		// 0xB8
 };
 
+struct timeval {
+	uint64_t tv_sec;		/* seconds */
+	uint64_t tv_usec;	/* and microseconds */
+};
+
 enum uio_rw {
 	UIO_READ,
 	UIO_WRITE
@@ -261,6 +266,7 @@ TYPE_END();
 TYPE_BEGIN(struct thread, 0x3D8); // XXX: random, don't use directly without fixing it
 TYPE_FIELD(struct mtx *volatile td_lock, 0);
 TYPE_FIELD(struct proc *td_proc, 8);
+TYPE_FIELD(int td_pinned, 0x12C);
 TYPE_FIELD(struct ucred *td_ucred, 0x130);
 TYPE_FIELD(char td_name[32], 0x284);
 TYPE_FIELD(uint64_t td_retval[2], 0x398);

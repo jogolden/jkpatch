@@ -26,6 +26,7 @@ void resolve(uint64_t kernbase) {
 	r(sched_add, __sched_add);
 	r(kern_yield, __kern_yield);
 	r(create_thread, __create_thread);
+	r(kthread_suspend_check, __kthread_suspend_check);
 	r(kthread_set_affinity, __kthread_set_affinity);
 	r(kproc_create, __kproc_create);
 	r(kproc_kthread_add, __kproc_kthread_add);
