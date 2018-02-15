@@ -23,6 +23,8 @@
 #define __sched_prio							0x1CFEF0
 #define __sched_add								0x1D0240
 #define __kern_yield							0x08AAC0
+#define __fill_regs								0x38AD30
+#define __set_regs								0x38AE60
 #define __create_thread							0x1D3700
 #define __kproc_create							0x1C92F0
 #define __kthread_set_affinity					0x1CA1D0
@@ -44,6 +46,10 @@
 #define __vm_map_unlock_read					0x43DF60
 #define __vmspace_free							0x43DB70
 #define __vmspace_acquire_ref					0x43DD40
+#define __vm_map_findspace						0x440B60
+#define __vm_map_insert							0x43EEC0
+#define __vm_map_lock							0x43DDA0
+#define __vm_map_unlock 						0x43DE10				
 #define __proc_rwmem							0x0ABBB0
 #define __sceSblAuthMgrIsLoadable2				0x614A80
 #define __sceSblAuthMgrVerifyHeader				0x614AE0

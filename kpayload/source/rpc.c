@@ -13,19 +13,22 @@ int rpc_send_data(int fd, void *data, int length) {
 	while (left > 0) {
 		if (left > RPC_MAX_DATA_LEN) {
 			sent = net_send(fd, data + offset, RPC_MAX_DATA_LEN);
-			offset += sent;
-			left -= sent;
 		} else {
 			sent = net_send(fd, data + offset, left);
-			offset += sent;
-			left -= sent;
 		}
+
+		if (!sent) {
+			return offset;
+		}
+
+		offset += sent;
+		left -= sent;
 	}
 
 	return offset;
 }
 
-int rpc_recv_data(int fd, void *data, int length) {
+int rpc_recv_data(int fd, void *data, int length, int force) {
 	uint32_t left = length;
 	uint32_t offset = 0;
 	uint32_t recv = 0;
@@ -33,13 +36,20 @@ int rpc_recv_data(int fd, void *data, int length) {
 	while (left > 0) {
 		if (left > RPC_MAX_DATA_LEN) {
 			recv = net_recv(fd, data + offset, RPC_MAX_DATA_LEN);
-			offset += recv;
-			left -= recv;
 		} else {
 			recv = net_recv(fd, data + offset, left);
-			offset += recv;
-			left -= recv;
 		}
+
+		if (!recv) {
+			if (force) {
+				pause("rpcrecvdata", 5);
+			} else {
+				return offset;
+			}
+		}
+
+		offset += recv;
+		left -= recv;
 	}
 
 	return offset;
@@ -111,9 +121,15 @@ int rpc_handle_write(int fd, struct rpc_proc_write *pwrite) {
 		}
 
 		rpc_send_status(fd, RPC_SUCCESS);
+		if (net_errno) {
+			goto error;
+		}
 
 		data = (uint8_t *)alloc(length);
-		rpc_recv_data(fd, data, length);
+		rpc_recv_data(fd, data, length, 1);
+		if (net_errno) {
+			goto error;
+		}
 
 		r = proc_write_mem(p, (void *)pwrite->address, (size_t)length, data, &n);
 		if (r || n != length) {
@@ -176,8 +192,19 @@ int rpc_handle_list(int fd, struct rpc_packet *packet) {
 	}
 
 	rpc_send_status(fd, RPC_SUCCESS);
+	if (net_errno) {
+		goto error;
+	}
+
 	rpc_send_data(fd, &count, sizeof(uint32_t));
+	if (net_errno) {
+		goto error;
+	}
+
 	rpc_send_data(fd, data, size);
+	if (net_errno) {
+		goto error;
+	}
 
 error:
 	if (data) {
@@ -235,8 +262,19 @@ int rpc_handle_info(int fd, struct rpc_proc_info1 *pinfo) {
 	}
 
 	rpc_send_status(fd, RPC_SUCCESS);
+	if (net_errno) {
+		goto error;
+	}
+
 	rpc_send_data(fd, &count, sizeof(uint32_t));
+	if (net_errno) {
+		goto error;
+	}
+
 	rpc_send_data(fd, data, size);
+	if (net_errno) {
+		goto error;
+	}
 
 error:
 	if (data) {
@@ -251,6 +289,7 @@ error:
 }
 
 int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
+	void *rpcldraddr = NULL;
 	void *stubaddr = NULL;
 	void *stackaddr = NULL;
 	int size = 0;
@@ -259,6 +298,15 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 
 	struct proc *p = proc_find_by_pid(pinstall->pid);
 	if (p) {
+		// allocate rpc ldr
+		size = sizeof(rpcldr);
+		size += (PAGE_SIZE - (size % PAGE_SIZE));
+		r = proc_allocate(p, &rpcldraddr, size);
+		if (r) {
+			rpc_send_status(fd, RPC_INSTALL_ERROR);
+			goto error;
+		}
+
 		// allocate rpc stub
 		size = sizeof(rpcstub);
 		size += (PAGE_SIZE - (size % PAGE_SIZE));
@@ -268,8 +316,16 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 			goto error;
 		}
 
-		// allocate stack for rpc stub
-		r = proc_allocate(p, &stackaddr, 0x8000);
+		// allocate stack
+		size = 0x8000;
+		r = proc_allocate(p, &stackaddr, size);
+		if (r) {
+			rpc_send_status(fd, RPC_INSTALL_ERROR);
+			goto error;
+		}
+
+		// write loader
+		r = proc_write_mem(p, rpcldraddr, sizeof(rpcldr), (void *)rpcldr, &n);
 		if (r) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
 			goto error;
@@ -277,6 +333,14 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 
 		// write stub
 		r = proc_write_mem(p, stubaddr, sizeof(rpcstub), (void *)rpcstub, &n);
+		if (r) {
+			rpc_send_status(fd, RPC_INSTALL_ERROR);
+			goto error;
+		}
+
+		// write stubentry
+		uint64_t stubentryaddr = (uint64_t)stubaddr + *(uint64_t *)(rpcstub + 4);
+		r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, stubentry), sizeof(stubentryaddr), (void *)&stubentryaddr, &n);
 		if (r) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
 			goto error;
@@ -291,10 +355,39 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 		*suword_lwpid = 0x9090;
 		__writecr0(CR0);
 
-		// execute stub
+		// steal tls (fs segment register)
 		struct thread *thr = TAILQ_FIRST(&p->p_threads);
-		uint64_t entry = (uint64_t)stubaddr + *(uint64_t *)(rpcstub + 4);
-		r = create_thread(thr, NULL, (void *)entry, NULL, stackaddr, 0x8000, NULL, NULL, NULL, 0, NULL);
+		uint32_t tls_base = 0;
+
+		struct reg regs;
+		fill_regs(thr, &regs);
+		uint16_t fs = regs.r_fs;
+
+		struct soft_segment_descriptor {
+			unsigned long ssd_base;		/* segment base address  */
+			unsigned long ssd_limit;	/* segment extent */
+			unsigned long ssd_type: 5;	/* segment type */
+			unsigned long ssd_dpl: 2;	/* segment descriptor priority level */
+			unsigned long ssd_p: 1;		/* segment descriptor present */
+			unsigned long ssd_long: 1;	/* long mode (for %cs) */
+			unsigned long ssd_def32: 1;	/* default 32 vs 16 bit size */
+			unsigned long ssd_gran: 1;	/* limit granularity (byte/page units)*/
+		} __attribute__((packed));
+
+		uint64_t gdt = kernbase + 0xF26088;
+		void (*sdtossd)(uint64_t sd, struct soft_segment_descriptor * ssd) = (void *)(kernbase + 0x3893B0);
+
+		struct soft_segment_descriptor ssd;
+		for (int cpu = 0; cpu < 8; cpu++) {
+			uint64_t sd = gdt + 8 * (13 * cpu * ((fs << 3) & 0x1FFF));
+			sdtossd(sd, &ssd);
+			uprintf("cpu %i ssd base %llX", cpu, ssd);
+		}
+
+		// execute loader
+		uint64_t ldrentryaddr = (uint64_t)rpcldraddr + *(uint64_t *)(rpcldr + 4);
+		//r = create_thread(thr, NULL, (void *)ldrentryaddr, NULL, stackaddr, 0x8000, (char *)tls_base, NULL, NULL, 0, NULL);
+		//uprintf("create_thread %i", r);
 		if (r) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
 			goto error;
@@ -305,7 +398,14 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 		data.rpcstub = (uint64_t)stubaddr;
 
 		rpc_send_status(fd, RPC_SUCCESS);
+		if (net_errno) {
+			goto error;
+		}
+
 		rpc_send_data(fd, &data, RPC_PROC_INSTALL2_SIZE);
+		if (net_errno) {
+			goto error;
+		}
 	} else {
 		rpc_send_status(fd, RPC_NO_PROC);
 		r = 1;
@@ -377,7 +477,14 @@ int rpc_handle_call(int fd, struct rpc_proc_call1 *pcall) {
 		data.rpc_rax = rpc_rax;
 
 		rpc_send_status(fd, RPC_SUCCESS);
+		if (net_errno) {
+			goto error;
+		}
+
 		rpc_send_data(fd, &data, RPC_PROC_CALL2_SIZE);
+		if (net_errno) {
+			goto error;
+		}
 	} else {
 		rpc_send_status(fd, RPC_NO_PROC);
 		r = 1;
@@ -440,19 +547,22 @@ void rpc_handler(void *vfd) {
 	uint32_t length = 0;
 	int r = 0;
 
-	kthread_set_affinity("rpchandler", 140, 0x200);
-
-	//uprintf("rpc_handler fd %lli", fd);
+	kthread_set_affinity("rpchandler", 160, 0x400);
 
 	while (1) {
 		kthread_suspend_check();
 
-		// wait to recv packets
-		r = rpc_recv_data(fd, &packet, RPC_PACKET_SIZE);
+		pause("rpchandler", 30);
 
-		// check if disconnected
+		// wait to recv packets
+		r = rpc_recv_data(fd, &packet, RPC_PACKET_SIZE, 0);
+
 		if (!r) {
-			pause("p", 75);
+			// check if disconnected
+			if (net_errno == 0) {
+				goto error;
+			}
+
 			continue;
 		}
 
@@ -480,7 +590,7 @@ void rpc_handler(void *vfd) {
 			}
 
 			// recv data
-			r = rpc_recv_data(fd, data, length);
+			r = rpc_recv_data(fd, data, length, 1);
 			if (!r) {
 				goto error;
 			}
@@ -506,10 +616,7 @@ void rpc_handler(void *vfd) {
 	}
 
 error:
-	if (fd > -1) {
-		net_close(fd);
-	}
-
+	net_close(fd);
 	kthread_exit();
 }
 
@@ -519,12 +626,24 @@ void rpc_server_thread(void *arg) {
 	int newfd = -1;
 	int r = 0;
 
-	kthread_set_affinity("rpcserver", 140, 0x200);
+	kthread_set_affinity("rpcserver", 180, 0x400);
 
 	fd = net_socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
 		goto error;
 	}
+
+	// set it to not generate SIGPIPE
+	int optval = 1;
+	net_setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(int));
+
+	// non blocking socket
+	optval = 1;
+	net_setsockopt(fd, SOL_SOCKET, SO_NBIO, (void *)&optval, sizeof(int));
+
+	// no delay to merge packets
+	optval = 1;
+	net_setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (void *)&optval, sizeof(int));
 
 	memset(&servaddr, NULL, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
@@ -535,7 +654,7 @@ void rpc_server_thread(void *arg) {
 		goto error;
 	}
 
-	if ((r = net_listen(fd, 32))) {
+	if ((r = net_listen(fd, 8))) {
 		goto error;
 	}
 
@@ -545,29 +664,28 @@ void rpc_server_thread(void *arg) {
 		// accept connection
 		newfd = net_accept(fd, NULL, NULL);
 
-		if (newfd > -1) {
+		if (newfd > -1 && !net_errno) {
 			// set it to not generate SIGPIPE
 			int optval = 1;
 			net_setsockopt(newfd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&optval, sizeof(int));
+
+			// non blocking socket
+			optval = 1;
+			net_setsockopt(newfd, SOL_SOCKET, SO_NBIO, (void *)&optval, sizeof(int));
 
 			// no delay to merge packets
 			optval = 1;
 			net_setsockopt(newfd, IPPROTO_TCP, TCP_NODELAY, (void *)&optval, sizeof(int));
 
-			// set socket timeout
-			struct timeval tv;
-			tv.tv_usec = 50000;
-			net_setsockopt(newfd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
-
 			// add thread to handle connection
 			kproc_kthread_add(rpc_handler, (void *)((uint64_t)newfd), &krpcproc, NULL, NULL, 0, "rpcproc", "rpchandler");
 		}
-	}
-error:
-	if (fd > -1) {
-		net_close(fd);
+
+		pause("rpcserver", 100);
 	}
 
+error:
+	net_close(fd);
 	kthread_exit();
 }
 

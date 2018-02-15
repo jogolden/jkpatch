@@ -8,6 +8,8 @@ void __noreturn rpcstub() {
 			rpc_go = 0;
 			rpc_done = 1;
 		}
+
+		sceKernelSleep(2);
 	}
 }
 ```

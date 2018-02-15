@@ -47,6 +47,8 @@ void (*mtx_unlock_sleep)(struct mtx *mutex, int flags);
 int (*fpu_kern_enter)(struct thread *td, void *ctx, unsigned int flags);
 int (*fpu_kern_leave)(struct thread *td, void *ctx);
 void (*kern_reboot)(int magic);
+int	(*fill_regs)(struct thread *td, struct reg *rg);
+int	(*set_regs)(struct thread *td, struct reg *rg);
 
 // virtual memory
 struct vmspace *(*vmspace_acquire_ref)(struct proc *p);
@@ -54,6 +56,10 @@ void (*vmspace_free)(struct vmspace *vm);
 void (*vm_map_lock_read)(struct vm_map *map);
 void (*vm_map_unlock_read)(struct vm_map *map);
 int (*vm_map_lookup_entry)(struct vm_map *map, uint64_t address, struct vm_map_entry **entries);
+int (*vm_map_findspace)(struct vm_map * map, uint64_t start, uint64_t length, uint64_t *addr);
+int (*vm_map_insert)(struct vm_map * map, uint64_t object, uint64_t offset, uint64_t start, uint64_t end, int prot, int max, int cow);
+void (*vm_map_lock)(struct vm_map * map);
+void (*vm_map_unlock)(struct vm_map * map);
 
 // sce
 int (*sceSblServiceMailbox)(unsigned long service_id, uint8_t request[SBL_MSG_SERVICE_MAILBOX_MAX_SIZE], void *response);

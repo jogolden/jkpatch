@@ -77,6 +77,18 @@ typedef uint64_t size_t;
 #define ENOLCK		46
 #define ECANCELED	47
 #define ENOTSUP		48
+#define	ENETDOWN	50
+#define	ENETUNREACH	51
+#define	ENETRESET	52
+#define	ECONNABORTED	53
+#define	ECONNRESET	54
+#define	ENOBUFS		55
+#define	EISCONN		56
+#define	ENOTCONN	57
+#define	ESHUTDOWN	58
+#define	ETOOMANYREFS	59
+#define	ETIMEDOUT	60
+#define	ECONNREFUSED	61
 
 #define	TRACEBUF	struct qm_trace trace;
 
@@ -144,6 +156,35 @@ struct trapframe {
 	uint64_t tf_rflags;	// 0xA8
 	uint64_t tf_rsp;	// 0xB0
 	uint64_t tf_ss;		// 0xB8
+};
+
+struct reg {
+	uint64_t r_r15;
+	uint64_t r_r14;
+	uint64_t r_r13;
+	uint64_t r_r12;
+	uint64_t r_r11;
+	uint64_t r_r10;
+	uint64_t r_r9;
+	uint64_t r_r8;
+	uint64_t r_rdi;
+	uint64_t r_rsi;
+	uint64_t r_rbp;
+	uint64_t r_rbx;
+	uint64_t r_rdx;
+	uint64_t r_rcx;
+	uint64_t r_rax;
+	uint32_t r_trapno;
+	uint16_t r_fs;
+	uint16_t r_gs;
+	uint32_t r_err;
+	uint16_t r_es;
+	uint16_t r_ds;
+	uint64_t r_rip;
+	uint64_t r_cs;
+	uint64_t r_rflags;
+	uint64_t r_rsp;
+	uint64_t r_ss;
 };
 
 struct timeval {
@@ -266,6 +307,7 @@ TYPE_END();
 TYPE_BEGIN(struct thread, 0x3D8); // XXX: random, don't use directly without fixing it
 TYPE_FIELD(struct mtx *volatile td_lock, 0);
 TYPE_FIELD(struct proc *td_proc, 8);
+TYPE_FIELD(TAILQ_ENTRY(thread) td_plist, 0x10);
 TYPE_FIELD(int td_pinned, 0x12C);
 TYPE_FIELD(struct ucred *td_ucred, 0x130);
 TYPE_FIELD(char td_name[32], 0x284);

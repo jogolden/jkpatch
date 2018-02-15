@@ -45,6 +45,10 @@ void resolve(uint64_t kernbase) {
 	r(vm_map_lock_read, __vm_map_lock_read);
 	r(vm_map_lookup_entry, __vm_map_lookup_entry);
 	r(vm_map_unlock_read, __vm_map_unlock_read);
+	r(vm_map_findspace, __vm_map_findspace);
+	r(vm_map_insert, __vm_map_insert);
+	r(vm_map_lock, __vm_map_lock);
+	r(vm_map_unlock, __vm_map_unlock);
 	r(vmspace_free, __vmspace_free);
 	r(vmspace_acquire_ref, __vmspace_acquire_ref);
 	r(sceSblServiceMailbox, __sceSblServiceMailbox);
@@ -64,4 +68,6 @@ void resolve(uint64_t kernbase) {
 	r(Sha256Hmac, __Sha256Hmac);
 	r(RsaesPkcs1v15Enc2048, __RsaesPkcs1v15Enc2048);
 	r(RsaesPkcs1v15Dec2048CRT, __RsaesPkcs1v15Dec2048CRT);
+	r(fill_regs, __fill_regs);
+	r(set_regs, __set_regs);
 }

@@ -147,21 +147,10 @@ int proc_allocate(struct proc *p, void **address, size_t size) {
 	uint64_t addr = NULL;
 	int r = 0;
 
-	uint64_t kernbase = getkernbase();
-
 	if (!address) {
 		r = 1;
 		goto error;
 	}
-
-	// 0x440B60 vm_map_findspace
-	int (*vm_map_findspace)(struct vm_map * map, uint64_t start, uint64_t length, uint64_t *addr) = (void *)(kernbase + 0x440B60);
-	// 0x43EEC0 vm_map_insert
-	int (*vm_map_insert)(struct vm_map * map, uint64_t object, uint64_t offset, uint64_t start, uint64_t end, int prot, int max, int cow) = (void *)(kernbase + 0x43EEC0);
-	// 0x43DDA0 vm_map_lock
-	void (*vm_map_lock)(struct vm_map * map) = (void *)(kernbase + 0x43DDA0);
-	// 0x43DE10 vm_map_unlock
-	void (*vm_map_unlock)(struct vm_map * map) = (void *)(kernbase + 0x43DE10);
 
 	struct vmspace *vm = p->p_vmspace;
 	struct vm_map *map = &vm->vm_map;
@@ -180,7 +169,7 @@ int proc_allocate(struct proc *p, void **address, size_t size) {
 	vm_map_unlock(map);
 
 error:
-	if(address) {
+	if (address) {
 		*address = (void *)addr;
 	}
 

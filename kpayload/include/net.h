@@ -71,6 +71,7 @@
 #define	SO_NO_OFFLOAD	0x4000		/* socket cannot be offloaded */
 #define	SO_NO_DDP		0x8000		/* disable direct data placement */
 #define SO_NBIO			0x1200
+
 #define	SO_SNDBUF	0x1001		/* send buffer size */
 #define	SO_RCVBUF	0x1002		/* receive buffer size */
 #define	SO_SNDLOWAT	0x1003		/* send low-water mark */
@@ -117,6 +118,8 @@ struct sockaddr_in {
 
 // kernel networking is tedious in freebsd, I do not want to deal with all the so* functions (never mind accepting a new connection...)
 // I plan on actually just calling the system calls themselves with current thread and structures filled out with proper arguments
+
+extern int net_errno;
 
 void net_disable_copy_checks();
 void net_enable_copy_checks();

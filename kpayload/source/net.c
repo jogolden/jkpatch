@@ -5,6 +5,8 @@
 
 // todo: add offsets to magic, or parse sysent table
 
+int net_errno;
+
 // specific to 4.05, may change in other updates
 // the kernel functions copyin and copyout check if the src/dst address is in kernel space
 void net_disable_copy_checks() {
@@ -61,7 +63,7 @@ int net_socket(int domain, int type, int protocol) {
 	uap.type = type;
 	uap.protocol = protocol;
 
-	sys_socket(td, &uap);
+	net_errno = sys_socket(td, &uap);
 
 	return td->td_retval[0];
 }
@@ -124,7 +126,7 @@ int net_accept(int sockfd, struct sockaddr *addr, int *addrlen) {
 	uap.name = (uint64_t)addr;
 	uap.namelen = (uint64_t)addrlen;
 
-	sys_accept(td, &uap);
+	net_errno = sys_accept(td, &uap);
 
 	return td->td_retval[0];
 }
@@ -147,7 +149,7 @@ int net_recv(int fd, void *buf, uint64_t len) {
 	uap.buf = (uint64_t)buf;
 	uap.nbyte = len;
 
-	sys_read(td, &uap);
+	net_errno = sys_read(td, &uap);
 
 	return td->td_retval[0];
 }
@@ -170,7 +172,7 @@ int net_send(int fd, const void *buf, uint64_t len) {
 	uap.buf = (uint64_t)buf;
 	uap.nbyte = len;
 
-	sys_write(td, &uap);
+	net_errno = sys_write(td, &uap);
 
 	return td->td_retval[0];
 }

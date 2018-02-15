@@ -21,9 +21,48 @@ rpc_rax: dq 0
 rpc_go: db 0
 rpc_done: db 0
 
+str_libkernel: db 'libkernel.sprx', 0
+str_libkernelweb: db 'libkernel_web.sprx', 0
+str_libkernelsys: db 'libkernel_sys.sprx', 0
+
+libkernel: dq 0
+str_sceKernelSleep: db 'sceKernelSleep', 0
+sceKernelSleep: dq 0
+
 rpcstub:
+	; get libkernel handle
+	mov rcx, 0
+	lea rdx, [libkernel]
+	mov rsi, 0
+	lea rdi, [str_libkernel]
+	call sys_dynlib_load_prx
+	test rax, rax
+	je resolve
+
+	mov rcx, 0
+	lea rdx, [libkernel]
+	mov rsi, 0
+	lea rdi, [str_libkernelweb]
+	call sys_dynlib_load_prx
+	test rax, rax
+	je resolve
+
+	mov rcx, 0
+	lea rdx, [libkernel]
+	mov rsi, 0
+	lea rdi, [str_libkernelsys]
+	call sys_dynlib_load_prx
+
+resolve:
+	; resolve sceKernelSleep
+	lea rdx, [sceKernelSleep]
+	lea rsi, [str_sceKernelSleep]
+	mov rdi, qword [libkernel]
+	call sys_dynlib_dlsym
+
+loop:
 	cmp byte [rpc_go], 0
-	jz rpc_end
+	jz end
 
 	; call
 	mov r9, qword [rpc_r9]
@@ -41,9 +80,25 @@ rpcstub:
 	mov byte [rpc_go], 0
 	mov byte [rpc_done], 1
 
-rpc_end:
-	; todo: add sleep
-	jmp rpcstub
-	xor eax, eax
-	ret
+end:
+	; sleep for two seconds
+	mov rdi, 2
+	mov r12, qword [sceKernelSleep]
+	call r12
 
+	jmp loop
+
+	xor eax, eax
+	retn
+
+sys_dynlib_load_prx:
+	mov rax, 594
+	mov r10, rcx
+	syscall
+	retn
+
+sys_dynlib_dlsym:
+	mov rax, 591
+	mov r10, rcx
+	syscall
+	retn
