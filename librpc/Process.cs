@@ -34,9 +34,10 @@ namespace librpc
         /// <returns></returns>
         public ProcessList(int number, string[] names, int[] pids)
         {
+            processes = new Process[number];
             for (int i = 0; i < number; i++)
             {
-
+                processes[i] = new Process(names[i], pids[i]);
             }
         }
 
