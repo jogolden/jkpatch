@@ -45,14 +45,25 @@ namespace librpc
         /// Finds a process based off name
         /// </summary>
         /// <param name="name">Process name</param>
+        /// <param name="contains">Condition to check if process name contains name</param>
         /// <returns></returns>
-        public Process FindProcess(string name)
+        public Process FindProcess(string name, bool contains = false)
         {
             foreach (Process p in processes)
             {
-                if (p.name == name)
+                if(contains)
                 {
-                    return p;
+                    if (p.name.Contains(name))
+                    {
+                        return p;
+                    }
+                }
+                else
+                {
+                    if (p.name == name)
+                    {
+                        return p;
+                    }
                 }
             }
 
