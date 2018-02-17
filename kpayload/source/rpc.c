@@ -17,8 +17,8 @@ int rpc_send_data(int fd, void *data, int length) {
 			sent = net_send(fd, data + offset, left);
 		}
 
-		if (!sent) {
-			return offset;
+		if (!sent && !net_errno) {
+			return 0;
 		}
 
 		offset += sent;
@@ -191,20 +191,28 @@ int rpc_handle_list(int fd, struct rpc_packet *packet) {
 		}
 	}
 
+	uprintf("success size: %X count %i", size, count);
+
 	rpc_send_status(fd, RPC_SUCCESS);
 	if (net_errno) {
 		goto error;
 	}
+
+	uprintf("send status");
 
 	rpc_send_data(fd, &count, sizeof(uint32_t));
 	if (net_errno) {
 		goto error;
 	}
 
+	uprintf("send count");
+
 	rpc_send_data(fd, data, size);
 	if (net_errno) {
 		goto error;
 	}
+
+	uprintf("send data");
 
 error:
 	if (data) {
@@ -261,20 +269,28 @@ int rpc_handle_info(int fd, struct rpc_proc_info1 *pinfo) {
 		info[i].prot = entries[i].prot;
 	}
 
+	uprintf("success size: %X count %i", size, count);
+
 	rpc_send_status(fd, RPC_SUCCESS);
 	if (net_errno) {
 		goto error;
 	}
+
+	uprintf("send status");
 
 	rpc_send_data(fd, &count, sizeof(uint32_t));
 	if (net_errno) {
 		goto error;
 	}
 
+	uprintf("send count");
+
 	rpc_send_data(fd, data, size);
 	if (net_errno) {
 		goto error;
 	}
+
+	uprintf("send data");
 
 error:
 	if (data) {
@@ -355,39 +371,12 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 		*suword_lwpid = 0x9090;
 		__writecr0(CR0);
 
-		// steal tls (fs segment register)
+		// donor thread
 		struct thread *thr = TAILQ_FIRST(&p->p_threads);
-		uint32_t tls_base = 0;
-
-		struct reg regs;
-		fill_regs(thr, &regs);
-		uint16_t fs = regs.r_fs;
-
-		struct soft_segment_descriptor {
-			unsigned long ssd_base;		/* segment base address  */
-			unsigned long ssd_limit;	/* segment extent */
-			unsigned long ssd_type: 5;	/* segment type */
-			unsigned long ssd_dpl: 2;	/* segment descriptor priority level */
-			unsigned long ssd_p: 1;		/* segment descriptor present */
-			unsigned long ssd_long: 1;	/* long mode (for %cs) */
-			unsigned long ssd_def32: 1;	/* default 32 vs 16 bit size */
-			unsigned long ssd_gran: 1;	/* limit granularity (byte/page units)*/
-		} __attribute__((packed));
-
-		uint64_t gdt = kernbase + 0xF26088;
-		void (*sdtossd)(uint64_t sd, struct soft_segment_descriptor * ssd) = (void *)(kernbase + 0x3893B0);
-
-		struct soft_segment_descriptor ssd;
-		for (int cpu = 0; cpu < 8; cpu++) {
-			uint64_t sd = gdt + 8 * (13 * cpu * ((fs << 3) & 0x1FFF));
-			sdtossd(sd, &ssd);
-			uprintf("cpu %i ssd base %llX", cpu, ssd);
-		}
-
+		
 		// execute loader
 		uint64_t ldrentryaddr = (uint64_t)rpcldraddr + *(uint64_t *)(rpcldr + 4);
-		//r = create_thread(thr, NULL, (void *)ldrentryaddr, NULL, stackaddr, 0x8000, (char *)tls_base, NULL, NULL, 0, NULL);
-		//uprintf("create_thread %i", r);
+		r = create_thread(thr, NULL, (void *)ldrentryaddr, NULL, stackaddr, 0x8000, NULL, NULL, NULL, 0, NULL);
 		if (r) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
 			goto error;

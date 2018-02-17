@@ -175,8 +175,8 @@ struct reg {
 	uint64_t r_rcx;
 	uint64_t r_rax;
 	uint32_t r_trapno;
-	uint16_t r_fs;
-	uint16_t r_gs;
+	uint16_t r_fs; // 0x7C
+	uint16_t r_gs; // 0x7E
 	uint32_t r_err;
 	uint16_t r_es;
 	uint16_t r_ds;
@@ -308,6 +308,7 @@ TYPE_BEGIN(struct thread, 0x3D8); // XXX: random, don't use directly without fix
 TYPE_FIELD(struct mtx *volatile td_lock, 0);
 TYPE_FIELD(struct proc *td_proc, 8);
 TYPE_FIELD(TAILQ_ENTRY(thread) td_plist, 0x10);
+TYPE_FIELD(int tid, 0x88);
 TYPE_FIELD(int td_pinned, 0x12C);
 TYPE_FIELD(struct ucred *td_ucred, 0x130);
 TYPE_FIELD(char td_name[32], 0x284);

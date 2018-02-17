@@ -51,7 +51,7 @@
 // 15 reserved
 #define CR4_FSGSBASE (1 << 16) // enables the instructions RDFSBASE, RDGSBASE, WRFSBASE, and WRGSBASE.
 #define	CR4_PCIDE (1 << 17) // PCID enable
-#define	CR4_OSXSAVE	XSAVE (1 << 18) // and processor extended states enable
+#define	CR4_OSXSAVE (1 << 18) // and processor extended states enable
 // 19 reserved
 #define	CR4_SMEP (1 << 20) // Supervisor Mode Executions Protection Enable
 #define	CR4_SMAP (1 << 21) // Supervisor Mode Access Protection Enable

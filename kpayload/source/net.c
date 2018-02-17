@@ -86,7 +86,9 @@ int net_bind(int sockfd, struct sockaddr *addr, int addrlen) {
 	uap.name = (uint64_t)addr;
 	uap.namelen = addrlen;
 
-	return sys_bind(td, &uap);
+	net_errno = sys_bind(td, &uap);
+
+	return net_errno;
 }
 
 int net_listen(int sockfd, int backlog) {
@@ -105,7 +107,9 @@ int net_listen(int sockfd, int backlog) {
 	uap.sockfd = sockfd;
 	uap.backlog = backlog;
 
-	return sys_listen(td, &uap);
+	net_errno = sys_listen(td, &uap);
+
+	return net_errno;
 }
 
 int net_accept(int sockfd, struct sockaddr *addr, int *addrlen) {
@@ -199,7 +203,9 @@ int net_setsockopt(int s, int level, int optname, const void *optval, uint32_t o
 	uap.optval = (uint64_t)optval;
 	uap.optlen = optlen;
 
-	return sys_setsockopt(td, &uap);
+	net_errno = sys_setsockopt(td, &uap);
+
+	return net_errno;
 }
 
 int net_close(int fd) {
@@ -216,5 +222,7 @@ int net_close(int fd) {
 	struct sys_close_args uap;
 	uap.fd = fd;
 
-	return sys_close(td, &uap);
+	net_errno = sys_close(td, &uap);
+
+	return net_errno;
 }

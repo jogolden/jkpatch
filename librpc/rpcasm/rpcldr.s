@@ -20,8 +20,10 @@ scePthreadCreate: dq 0
 hthread: dq 0
 str_rpcstub: db 'rpcstub', 0
 
-; rpcldr()
 rpcldr:
+	; load pthread data into fs
+	call steal_pthread
+
 	; get libkernel handle
 	mov rcx, 0
 	lea rdx, [libkernel]
@@ -60,9 +62,10 @@ resolve:
 	mov r12, qword [scePthreadCreate]
 	call r12
 
-	mov rdi, 0
-	call sys_thr_exit
-	retn
+	mov byte [ldr_done], 1
+
+loop:
+	jmp loop
 
 sys_dynlib_load_prx:
 	mov rax, 594
@@ -76,8 +79,33 @@ sys_dynlib_dlsym:
 	syscall
 	retn
 
-sys_thr_exit:
-	mov rax, 431
+sys_sysarch:
+	mov rax, 165
 	mov r10, rcx
 	syscall
+	retn
+
+amd64_set_fsbase:
+	push rbp
+	mov rbp, rsp
+	push rbx
+	sub rsp, 0x18
+
+	mov [rbp - 0x18], rdi
+
+	lea rsi, [rbp - 0x18]
+	mov edi, 129
+	call sys_sysarch
+
+	add rsp, 0x18
+	pop rbx
+	pop rbp
+	retn
+
+
+steal_pthread:
+	; detect which libkernel
+	; using libkernel_sys.sprx for testing
+	
+	call amd64_set_fsbase
 	retn
