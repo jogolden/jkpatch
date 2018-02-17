@@ -191,28 +191,20 @@ int rpc_handle_list(int fd, struct rpc_packet *packet) {
 		}
 	}
 
-	uprintf("success size: %X count %i", size, count);
-
 	rpc_send_status(fd, RPC_SUCCESS);
 	if (net_errno) {
 		goto error;
 	}
-
-	uprintf("send status");
 
 	rpc_send_data(fd, &count, sizeof(uint32_t));
 	if (net_errno) {
 		goto error;
 	}
 
-	uprintf("send count");
-
 	rpc_send_data(fd, data, size);
 	if (net_errno) {
 		goto error;
 	}
-
-	uprintf("send data");
 
 error:
 	if (data) {
@@ -269,28 +261,20 @@ int rpc_handle_info(int fd, struct rpc_proc_info1 *pinfo) {
 		info[i].prot = entries[i].prot;
 	}
 
-	uprintf("success size: %X count %i", size, count);
-
 	rpc_send_status(fd, RPC_SUCCESS);
 	if (net_errno) {
 		goto error;
 	}
-
-	uprintf("send status");
 
 	rpc_send_data(fd, &count, sizeof(uint32_t));
 	if (net_errno) {
 		goto error;
 	}
 
-	uprintf("send count");
-
 	rpc_send_data(fd, data, size);
 	if (net_errno) {
 		goto error;
 	}
-
-	uprintf("send data");
 
 error:
 	if (data) {
@@ -373,7 +357,7 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 
 		// donor thread
 		struct thread *thr = TAILQ_FIRST(&p->p_threads);
-		
+
 		// execute loader
 		uint64_t ldrentryaddr = (uint64_t)rpcldraddr + *(uint64_t *)(rpcldr + 4);
 		r = create_thread(thr, NULL, (void *)ldrentryaddr, NULL, stackaddr, 0x8000, NULL, NULL, NULL, 0, NULL);
