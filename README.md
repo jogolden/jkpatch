@@ -30,9 +30,11 @@ void resolve(uint64_t kernbase);
 ```
 ... as it is called from `crt0.s`. And changing this will produce errors.
 
+### RPC Quickstart
+
+See either [Example.cs](librpc/Example.cs) or look at the [RPC documentation](librpc/jkpatch.pdf).
+
 ### Coming Soon
-- Clean up C# library (librpc)
-- RPC documentation, write a pdf explaining how to get started
 - Add kernel read/write/allocate/free/execute commands
 - General code clean up and refactoring
 - Inject elfs into processes (easy)
