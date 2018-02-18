@@ -60,6 +60,7 @@ int (*vm_map_findspace)(struct vm_map * map, uint64_t start, uint64_t length, ui
 int (*vm_map_insert)(struct vm_map * map, uint64_t object, uint64_t offset, uint64_t start, uint64_t end, int prot, int max, int cow);
 void (*vm_map_lock)(struct vm_map * map);
 void (*vm_map_unlock)(struct vm_map * map);
+int (*vm_map_delete)(struct vm_map * map, uint64_t start, uint64_t end);
 
 // sce
 int (*sceSblServiceMailbox)(unsigned long service_id, uint8_t request[SBL_MSG_SERVICE_MAILBOX_MAX_SIZE], void *response);

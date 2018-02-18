@@ -160,7 +160,6 @@ int proc_allocate(struct proc *p, void **address, size_t size) {
 	r = vm_map_findspace(map, NULL, size, &addr);
 	if (r) {
 		vm_map_unlock(map);
-		r = 1;
 		goto error;
 	}
 
@@ -168,10 +167,29 @@ int proc_allocate(struct proc *p, void **address, size_t size) {
 
 	vm_map_unlock(map);
 
-error:
+	if (r) {
+		goto error;
+	}
+
 	if (address) {
 		*address = (void *)addr;
 	}
+
+error:
+	return r;
+}
+
+int proc_deallocate(struct proc *p, void *address, size_t size) {
+	int r = 0;
+
+	struct vmspace *vm = p->p_vmspace;
+	struct vm_map *map = &vm->vm_map;
+
+	vm_map_lock(map);
+
+	r = vm_map_delete(map, (uint64_t)address, (uint64_t)address + size);
+
+	vm_map_unlock(map);
 
 	return r;
 }

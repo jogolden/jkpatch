@@ -49,6 +49,7 @@ void resolve(uint64_t kernbase) {
 	r(vm_map_insert, __vm_map_insert);
 	r(vm_map_lock, __vm_map_lock);
 	r(vm_map_unlock, __vm_map_unlock);
+	r(vm_map_delete, __vm_map_delete);
 	r(vmspace_free, __vmspace_free);
 	r(vmspace_acquire_ref, __vmspace_acquire_ref);
 	r(sceSblServiceMailbox, __sceSblServiceMailbox);

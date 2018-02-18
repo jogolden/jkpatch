@@ -26,8 +26,8 @@ str_libkernelweb: db 'libkernel_web.sprx', 0
 str_libkernelsys: db 'libkernel_sys.sprx', 0
 
 libkernel: dq 0
-str_sceKernelSleep: db 'sceKernelSleep', 0
-sceKernelSleep: dq 0
+str_sceKernelSleep: db 'sceKernelUsleep', 0
+sceKernelUsleep: dq 0
 
 rpcstub:
 	; get libkernel handle
@@ -54,8 +54,8 @@ rpcstub:
 	call sys_dynlib_load_prx
 
 resolve:
-	; resolve sceKernelSleep
-	lea rdx, [sceKernelSleep]
+	; resolve sceKernelUsleep
+	lea rdx, [sceKernelUsleep]
 	lea rsi, [str_sceKernelSleep]
 	mov rdi, qword [libkernel]
 	call sys_dynlib_dlsym
@@ -81,9 +81,9 @@ loop:
 	mov byte [rpc_done], 1
 
 end:
-	; sleep for two seconds
-	mov rdi, 2
-	mov r12, qword [sceKernelSleep]
+	; sleep for 100000 microseconds
+	mov rdi, 100000
+	mov r12, qword [sceKernelUsleep]
 	call r12
 
 	jmp loop

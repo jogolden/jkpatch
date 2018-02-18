@@ -22,5 +22,6 @@ int proc_rw_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n, i
 int proc_read_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n);
 int proc_write_mem(struct proc *p, void *ptr, size_t size, void *data, size_t *n);
 int proc_allocate(struct proc*p, void **address, size_t size);
+int proc_deallocate(struct proc *p, void *address, size_t size);
 
 #endif

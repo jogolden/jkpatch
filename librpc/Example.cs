@@ -112,6 +112,18 @@ namespace Example
             byte[] b = ps4.ReadMemory(p.pid, executable, 256);
             Console.Write(HexDump(b));
 
+            ulong stub = ps4.InstallRPC(p.pid);
+            
+            ProcessInfo pi = ps4.GetProcessInfo(p.pid);
+            MemoryEntry vme = pi.FindEntry("libSceLibcInternal.sprx", true);
+
+            // dissasemble libSceLibcInternal.sprx to get these offsets (4.05)
+            int sys_getpid = (int)ps4.Call(p.pid, stub, vme.start + 0xE0);
+            Console.WriteLine("sys_getpid: " + sys_getpid);
+
+            int time = (int)ps4.Call(p.pid, stub, vme.start + 0x4430, 0);
+            Console.WriteLine("time: " + time);
+
             ps4.Disconnect();
 
             Console.ReadKey();

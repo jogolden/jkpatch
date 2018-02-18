@@ -292,33 +292,34 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 	void *rpcldraddr = NULL;
 	void *stubaddr = NULL;
 	void *stackaddr = NULL;
-	int size = 0;
+	struct proc_vm_map_entry *entries = NULL;
+	size_t num_entries = 0;
 	size_t n = 0;
 	int r = 0;
 
 	struct proc *p = proc_find_by_pid(pinstall->pid);
 	if (p) {
 		// allocate rpc ldr
-		size = sizeof(rpcldr);
-		size += (PAGE_SIZE - (size % PAGE_SIZE));
-		r = proc_allocate(p, &rpcldraddr, size);
+		uint64_t ldrsize = sizeof(rpcldr);
+		ldrsize += (PAGE_SIZE - (ldrsize % PAGE_SIZE));
+		r = proc_allocate(p, &rpcldraddr, ldrsize);
 		if (r) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
 			goto error;
 		}
 
 		// allocate rpc stub
-		size = sizeof(rpcstub);
-		size += (PAGE_SIZE - (size % PAGE_SIZE));
-		r = proc_allocate(p, &stubaddr, size);
+		uint64_t stubsize = sizeof(rpcstub);
+		stubsize += (PAGE_SIZE - (stubsize % PAGE_SIZE));
+		r = proc_allocate(p, &stubaddr, stubsize);
 		if (r) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
 			goto error;
 		}
 
 		// allocate stack
-		size = 0x8000;
-		r = proc_allocate(p, &stackaddr, size);
+		uint64_t stacksize = 0x8000;
+		r = proc_allocate(p, &stackaddr, stacksize);
 		if (r) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
 			goto error;
@@ -338,14 +339,6 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 			goto error;
 		}
 
-		// write stubentry
-		uint64_t stubentryaddr = (uint64_t)stubaddr + *(uint64_t *)(rpcstub + 4);
-		r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, stubentry), sizeof(stubentryaddr), (void *)&stubentryaddr, &n);
-		if (r) {
-			rpc_send_status(fd, RPC_INSTALL_ERROR);
-			goto error;
-		}
-
 		// patch suword_lwpid
 		// has a check to see if child_tid/parent_tid is in kernel memory, and it in so patch it
 		uint64_t kernbase = getkernbase();
@@ -358,6 +351,78 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 		// donor thread
 		struct thread *thr = TAILQ_FIRST(&p->p_threads);
 
+		// find libkernel base
+		r = proc_get_vm_map(p, &entries, &num_entries);
+		if (r) {
+			rpc_send_status(fd, RPC_INFO_ERROR);
+			r = 1;
+			goto error;
+		}
+
+		// offsets are for 4.05 libraries
+		// todo: write patch finder
+
+		// libkernel.sprx
+		// 0x11570 scePthreadCreate
+		// 0x7CD20 thr_initial
+		// offset 0x6B7B0
+
+		// libkernel_web.sprx
+		// 0x11570 scePthreadCreate
+		// 0x7CD20 thr_initial
+		// offset 0x6B7B0
+
+		// libkernel_sys.sprx
+		// 0x120A0 scePthreadCreate
+		// 0x80D20 thr_initial
+		// offset 0x6EC80
+
+		uint64_t _scePthreadCreate = 0, _thr_initial = 0;
+		for (int i = 0; i < num_entries; i++) {
+			if(entries[i].prot != (PROT_READ | PROT_EXEC)) {
+				continue;
+			}
+
+			if (!memcmp(entries[i].name, "libkernel.sprx", 14) ||
+			        !memcmp(entries[i].name, "libkernel_web.sprx", 18)) {
+				_scePthreadCreate = entries[i].start + 0x11570;
+				_thr_initial = entries[i].start + 0x7CD20;
+				break;
+			}
+
+			if (!memcmp(entries[i].name, "libkernel_sys.sprx", 18)) {
+				_scePthreadCreate = entries[i].start + 0x120A0;
+				_thr_initial = entries[i].start + 0x80D20;
+				break;
+			}
+		}
+
+		if(!_scePthreadCreate || !_thr_initial) {
+			rpc_send_status(fd, RPC_INFO_ERROR);
+			r = 1;
+			goto error;
+		}
+
+		// write variables
+		uint64_t stubentryaddr = (uint64_t)stubaddr + *(uint64_t *)(rpcstub + 4);
+		r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, stubentry), sizeof(stubentryaddr), (void *)&stubentryaddr, &n);
+		if (r) {
+			rpc_send_status(fd, RPC_INSTALL_ERROR);
+			goto error;
+		}
+
+		r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, scePthreadCreate), sizeof(_scePthreadCreate), (void *)&_scePthreadCreate, &n);
+		if (r) {
+			rpc_send_status(fd, RPC_INSTALL_ERROR);
+			goto error;
+		}
+
+		r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, thr_initial), sizeof(_thr_initial), (void *)&_thr_initial, &n);
+		if (r) {
+			rpc_send_status(fd, RPC_INSTALL_ERROR);
+			goto error;
+		}
+
 		// execute loader
 		uint64_t ldrentryaddr = (uint64_t)rpcldraddr + *(uint64_t *)(rpcldr + 4);
 		r = create_thread(thr, NULL, (void *)ldrentryaddr, NULL, stackaddr, 0x8000, NULL, NULL, NULL, 0, NULL);
@@ -365,6 +430,20 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
 			goto error;
 		}
+
+		// wait until loader is done
+		uint8_t ldrdone = 0;
+		while (!ldrdone) {
+			r = proc_read_mem(p, (void *)(rpcldraddr + offsetof(struct rpcldr_header, ldrdone)), sizeof(ldrdone), &ldrdone, &n);
+			if (r) {
+				rpc_send_status(fd, RPC_CALL_ERROR);
+				r = 1;
+				goto error;
+			}
+		}
+
+		proc_deallocate(p, rpcldraddr, ldrsize);
+		proc_deallocate(p, stackaddr, stacksize);
 
 		struct rpc_proc_install2 data;
 		data.pid = pinstall->pid;
@@ -386,6 +465,10 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 	}
 
 error:
+	if (entries) {
+		dealloc(entries);
+	}
+
 	return r;
 }
 
