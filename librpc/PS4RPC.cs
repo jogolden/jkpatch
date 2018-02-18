@@ -18,7 +18,7 @@ namespace librpc
 
         private static int RPC_PORT = 733;
         private static uint RPC_PACKET_MAGIC = 0xBDAABBCC;
-        private static int RPC_MAX_DATA_LEN = 4096;
+        private static int RPC_MAX_DATA_LEN = 8192;
 
         /** commands **/
         private enum RPC_CMDS : uint
@@ -290,35 +290,10 @@ namespace librpc
                 throw new Exception("librpc: not connected");
             }
 
-            byte[] data = null;
-
-            if (length > RPC_MAX_DATA_LEN)
-            {
-                MemoryStream rs = new MemoryStream();
-
-                // read max data length
-                SendCMDPacket(RPC_CMDS.RPC_PROC_READ, RPC_PROC_READ_SIZE);
-                SendPacketData(RPC_PROC_READ_SIZE, pid, address, RPC_MAX_DATA_LEN);
-                CheckRPCStatus();
-                rs.Write(ReceiveData(RPC_MAX_DATA_LEN), 0, RPC_MAX_DATA_LEN);
-
-                // call ReadMemory again
-                int nextlength = length - RPC_MAX_DATA_LEN;
-                byte[] nextdata = ReadMemory(pid, address + (ulong)RPC_MAX_DATA_LEN, nextlength);
-                rs.Write(nextdata, 0, nextlength);
-
-                data = rs.ToArray();
-                rs.Dispose();
-            }
-            else
-            {
-                SendCMDPacket(RPC_CMDS.RPC_PROC_READ, RPC_PROC_READ_SIZE);
-                SendPacketData(RPC_PROC_READ_SIZE, pid, address, length);
-                CheckRPCStatus();
-                data = ReceiveData(length);
-            }
-
-            return data;
+            SendCMDPacket(RPC_CMDS.RPC_PROC_READ, RPC_PROC_READ_SIZE);
+            SendPacketData(RPC_PROC_READ_SIZE, pid, address, length);
+            CheckRPCStatus();
+            return ReceiveData(length);
         }
 
         /// <summary>
@@ -410,7 +385,12 @@ namespace librpc
 
             SendCMDPacket(RPC_CMDS.RPC_PROC_INFO, RPC_PROC_INFO1_SIZE);
             SendPacketData(RPC_PROC_INFO1_SIZE, pid);
-            CheckRPCStatus();
+
+            RPC_STATUS status = CheckRPCStatus();
+            if (status == RPC_STATUS.RPC_INFO_NO_MAP)
+            {
+                return new ProcessInfo(pid, null);
+            }
 
             // recv count
             byte[] bnumber = new byte[4];
@@ -471,7 +451,11 @@ namespace librpc
             int num = 0;
             foreach (object arg in args)
             {
-                rs.Write(BitConverter.GetBytes((ulong)arg), 0, sizeof(ulong));
+                byte[] bytes = null;
+
+                bytes = BitConverter.GetBytes(Convert.ToUInt64(arg));
+
+                rs.Write(bytes, 0, bytes.Length);
                 num++;
             }
 

@@ -27,7 +27,7 @@
 
 #define RPC_VALID_CMD(cmd)	(((cmd & 0xFF000000) >> 24) == 0xBD)
 
-#define RPC_MAX_DATA_LEN	4096
+#define RPC_MAX_DATA_LEN	8192
 
 // rpc status
 #define RPC_SUCCESS				0x80000000

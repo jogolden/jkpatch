@@ -41,9 +41,11 @@ int rpc_recv_data(int fd, void *data, int length, int force) {
 		}
 
 		if (!recv) {
-			if (force) {
-				pause("rpcrecvdata", 5);
-			} else {
+			if (!net_errno) {
+				return 0;
+			}
+
+			if (!force) {
 				return offset;
 			}
 		}
@@ -70,26 +72,48 @@ int rpc_handle_read(int fd, struct rpc_proc_read *pread) {
 	int r = 0;
 
 	int length = pread->length;
+	uint32_t left = length;
+	uint32_t offset = 0;
 
 	struct proc *p = proc_find_by_pid(pread->pid);
 	if (p) {
-		if (length > RPC_MAX_DATA_LEN) {
-			rpc_send_status(fd, RPC_TOO_MUCH_DATA);
+		// test read
+		uint8_t test = 0;
+		r = proc_read_mem(p, (void *)pread->address, 1, &test, &n);
+		if (r) {
+			rpc_send_status(fd, RPC_READ_ERROR);
 			r = 1;
 			goto error;
 		}
 
-		data = (uint8_t *)alloc(length);
-
-		r = proc_read_mem(p, (void *)pread->address, (size_t)length, data, &n);
-		if (r || n != length) {
-			rpc_send_status(fd, RPC_READ_ERROR);
-			r = 1;
+		rpc_send_status(fd, RPC_SUCCESS);
+		if (net_errno) {
 			goto error;
-		} else {
-			// send back data
-			rpc_send_status(fd, RPC_SUCCESS);
-			rpc_send_data(fd, data, length);
+		}
+
+		data = (uint8_t *)alloc(RPC_MAX_DATA_LEN);
+
+		while (left) {
+			uint32_t read = left;
+			if (left > RPC_MAX_DATA_LEN) {
+				read = RPC_MAX_DATA_LEN;
+			}
+
+			r = proc_read_mem(p, (void *)(pread->address + offset), (size_t)read, data, &n);
+			if (r) {
+				r = 1;
+				goto error;
+			} else {
+				// send back data
+				r = rpc_send_data(fd, data, read);
+				if (!r) {
+					r = 1;
+					goto error;
+				}
+			}
+
+			left -= read;
+			offset += read;
 		}
 	} else {
 		rpc_send_status(fd, RPC_NO_PROC);
@@ -379,7 +403,7 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 
 		uint64_t _scePthreadCreate = 0, _thr_initial = 0;
 		for (int i = 0; i < num_entries; i++) {
-			if(entries[i].prot != (PROT_READ | PROT_EXEC)) {
+			if (entries[i].prot != (PROT_READ | PROT_EXEC)) {
 				continue;
 			}
 
@@ -397,7 +421,7 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 			}
 		}
 
-		if(!_scePthreadCreate || !_thr_initial) {
+		if (!_scePthreadCreate || !_thr_initial) {
 			rpc_send_status(fd, RPC_INFO_ERROR);
 			r = 1;
 			goto error;
@@ -603,12 +627,12 @@ void rpc_handler(void *vfd) {
 	uint32_t length = 0;
 	int r = 0;
 
-	kthread_set_affinity("rpchandler", 160, 0x400);
+	kthread_set_affinity("rpchandler", 150, 0x400);
 
 	while (1) {
 		kthread_suspend_check();
 
-		pause("rpchandler", 30);
+		pause("rpchandler", 15);
 
 		// wait to recv packets
 		r = rpc_recv_data(fd, &packet, RPC_PACKET_SIZE, 0);
@@ -682,7 +706,7 @@ void rpc_server_thread(void *arg) {
 	int newfd = -1;
 	int r = 0;
 
-	kthread_set_affinity("rpcserver", 180, 0x400);
+	kthread_set_affinity("rpcserver", 175, 0x400);
 
 	fd = net_socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
@@ -737,7 +761,7 @@ void rpc_server_thread(void *arg) {
 			kproc_kthread_add(rpc_handler, (void *)((uint64_t)newfd), &krpcproc, NULL, NULL, 0, "rpcproc", "rpchandler");
 		}
 
-		pause("rpcserver", 100);
+		pause("rpcserver", 80);
 	}
 
 error:
