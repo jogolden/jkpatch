@@ -8,10 +8,13 @@ magic: db 'RLDR'
 entry: dq rpcldr
 ldrdone: db 0
 stubentry: dq 0
+scePthreadAttrInit: dq 0
+scePthreadAttrSetstacksize: dq 0
 scePthreadCreate: dq 0
 thr_initial: dq 0
 
 hthread: dq 0
+scePthreadAttr: dq 0
 str_rpcstub: db 'rpcstub', 0
 
 rpcldr:
@@ -21,11 +24,22 @@ rpcldr:
 	mov rdi, qword [rsi + 0x1E0]
 	call amd64_set_fsbase
 
+	; create attr
+	lea rdi, [scePthreadAttr]
+	mov r12, qword [scePthreadAttrInit]
+	call r12
+
+	; set stack size
+	mov rsi, 0x80000 ; 512 kb
+	lea rdi, [scePthreadAttr]
+	mov r12, qword [scePthreadAttrSetstacksize]
+	call r12
+
 	; create thread
 	lea r8, [str_rpcstub]
 	mov rcx, 0
 	mov rdx, qword [stubentry]
-	mov rsi, 0
+	lea rsi, [scePthreadAttr]
 	lea rdi, [hthread]
 	mov r12, qword [scePthreadCreate]
 	call r12

@@ -451,9 +451,66 @@ namespace librpc
             int num = 0;
             foreach (object arg in args)
             {
-                byte[] bytes = null;
+                byte[] bytes = new byte[8];
 
-                bytes = BitConverter.GetBytes(Convert.ToUInt64(arg));
+                if (arg.GetType() == typeof(char))
+                {
+                    byte[] tmp = BitConverter.GetBytes((char)arg);
+                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(char));
+
+                    byte[] pad = new byte[sizeof(ulong) - sizeof(char)];
+                    Buffer.BlockCopy(pad, 0, bytes, sizeof(char), pad.Length);
+                }
+                else if (arg.GetType() == typeof(byte))
+                {
+                    byte[] tmp = BitConverter.GetBytes((byte)arg);
+                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(byte));
+
+                    byte[] pad = new byte[sizeof(ulong) - sizeof(byte)];
+                    Buffer.BlockCopy(pad, 0, bytes, sizeof(byte), pad.Length);
+                }
+                else if (arg.GetType() == typeof(short))
+                {
+                    byte[] tmp = BitConverter.GetBytes((short)arg);
+                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(short));
+
+                    byte[] pad = new byte[sizeof(ulong) - sizeof(short)];
+                    Buffer.BlockCopy(pad, 0, bytes, sizeof(short), pad.Length);
+                }
+                else if (arg.GetType() == typeof(ushort))
+                {
+                    byte[] tmp = BitConverter.GetBytes((ushort)arg);
+                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(ushort));
+
+                    byte[] pad = new byte[sizeof(ulong) - sizeof(ushort)];
+                    Buffer.BlockCopy(pad, 0, bytes, sizeof(ushort), pad.Length);
+                }
+                else if (arg.GetType() == typeof(int))
+                {
+                    byte[] tmp = BitConverter.GetBytes((int)arg);
+                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(int));
+
+                    byte[] pad = new byte[sizeof(ulong) - sizeof(int)];
+                    Buffer.BlockCopy(pad, 0, bytes, sizeof(int), pad.Length);
+                }
+                else if (arg.GetType() == typeof(uint))
+                {
+                    byte[] tmp = BitConverter.GetBytes((uint)arg);
+                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(uint));
+
+                    byte[] pad = new byte[sizeof(ulong) - sizeof(uint)];
+                    Buffer.BlockCopy(pad, 0, bytes, sizeof(uint), pad.Length);
+                }
+                else if (arg.GetType() == typeof(long))
+                {
+                    byte[] tmp = BitConverter.GetBytes((long)arg);
+                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(long));
+                }
+                else if (arg.GetType() == typeof(ulong))
+                {
+                    byte[] tmp = BitConverter.GetBytes((ulong)arg);
+                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(ulong));
+                }
 
                 rs.Write(bytes, 0, bytes.Length);
                 num++;
@@ -554,6 +611,24 @@ namespace librpc
             WriteMemory(pid, address, BitConverter.GetBytes(value));
         }
         public void WriteUInt64(int pid, ulong address, UInt64 value)
+        {
+            WriteMemory(pid, address, BitConverter.GetBytes(value));
+        }
+
+        /* float/double */
+        public float ReadSingle(int pid, ulong address)
+        {
+            return BitConverter.ToSingle(ReadMemory(pid, address, sizeof(float)), 0);
+        }
+        public void WriteSingle(int pid, ulong address, float value)
+        {
+            WriteMemory(pid, address, BitConverter.GetBytes(value));
+        }
+        public double ReadDouble(int pid, ulong address)
+        {
+            return BitConverter.ToDouble(ReadMemory(pid, address, sizeof(double)), 0);
+        }
+        public void WriteDouble(int pid, ulong address, double value)
         {
             WriteMemory(pid, address, BitConverter.GetBytes(value));
         }

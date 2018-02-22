@@ -321,20 +321,24 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 	size_t n = 0;
 	int r = 0;
 
+	uint64_t ldrsize = sizeof(rpcldr);
+	ldrsize += (PAGE_SIZE - (ldrsize % PAGE_SIZE));
+
+	uint64_t stubsize = sizeof(rpcstub);
+	stubsize += (PAGE_SIZE - (stubsize % PAGE_SIZE));
+
+	uint64_t stacksize = 0x80000;
+
 	struct proc *p = proc_find_by_pid(pinstall->pid);
 	if (p) {
 		// allocate rpc ldr
-		uint64_t ldrsize = sizeof(rpcldr);
-		ldrsize += (PAGE_SIZE - (ldrsize % PAGE_SIZE));
 		r = proc_allocate(p, &rpcldraddr, ldrsize);
 		if (r) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
 			goto error;
 		}
 
-		// allocate rpc stub
 		uint64_t stubsize = sizeof(rpcstub);
-		stubsize += (PAGE_SIZE - (stubsize % PAGE_SIZE));
 		r = proc_allocate(p, &stubaddr, stubsize);
 		if (r) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
@@ -342,7 +346,6 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 		}
 
 		// allocate stack
-		uint64_t stacksize = 0x8000;
 		r = proc_allocate(p, &stackaddr, stacksize);
 		if (r) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
@@ -401,7 +404,7 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 		// 0x80D20 thr_initial
 		// offset 0x6EC80
 
-		uint64_t _scePthreadCreate = 0, _thr_initial = 0;
+		uint64_t _scePthreadAttrInit = 0, _scePthreadAttrSetstacksize = 0, _scePthreadCreate = 0, _thr_initial = 0;
 		for (int i = 0; i < num_entries; i++) {
 			if (entries[i].prot != (PROT_READ | PROT_EXEC)) {
 				continue;
@@ -409,12 +412,16 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 
 			if (!memcmp(entries[i].name, "libkernel.sprx", 14) ||
 			        !memcmp(entries[i].name, "libkernel_web.sprx", 18)) {
+				_scePthreadAttrInit = entries[i].start + 0x11130;
+				_scePthreadAttrSetstacksize = entries[i].start + 0x11150;
 				_scePthreadCreate = entries[i].start + 0x11570;
 				_thr_initial = entries[i].start + 0x7CD20;
 				break;
 			}
 
 			if (!memcmp(entries[i].name, "libkernel_sys.sprx", 18)) {
+				_scePthreadAttrInit = entries[i].start + 0x11C60;
+				_scePthreadAttrSetstacksize = entries[i].start + 0x11C80;
 				_scePthreadCreate = entries[i].start + 0x120A0;
 				_thr_initial = entries[i].start + 0x80D20;
 				break;
@@ -430,6 +437,18 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 		// write variables
 		uint64_t stubentryaddr = (uint64_t)stubaddr + *(uint64_t *)(rpcstub + 4);
 		r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, stubentry), sizeof(stubentryaddr), (void *)&stubentryaddr, &n);
+		if (r) {
+			rpc_send_status(fd, RPC_INSTALL_ERROR);
+			goto error;
+		}
+
+		r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, scePthreadAttrInit), sizeof(_scePthreadAttrInit), (void *)&_scePthreadAttrInit, &n);
+		if (r) {
+			rpc_send_status(fd, RPC_INSTALL_ERROR);
+			goto error;
+		}
+
+		r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, scePthreadAttrSetstacksize), sizeof(_scePthreadAttrSetstacksize), (void *)&_scePthreadAttrSetstacksize, &n);
 		if (r) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
 			goto error;
@@ -466,9 +485,6 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 			}
 		}
 
-		proc_deallocate(p, rpcldraddr, ldrsize);
-		proc_deallocate(p, stackaddr, stacksize);
-
 		struct rpc_proc_install2 data;
 		data.pid = pinstall->pid;
 		data.rpcstub = (uint64_t)stubaddr;
@@ -491,6 +507,14 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 error:
 	if (entries) {
 		dealloc(entries);
+	}
+
+	if (rpcldraddr) {
+		proc_deallocate(p, rpcldraddr, ldrsize);
+	}
+
+	if (stackaddr) {
+		proc_deallocate(p, stackaddr, stacksize);
 	}
 
 	return r;
