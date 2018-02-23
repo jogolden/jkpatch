@@ -34,10 +34,10 @@ void resolve(uint64_t kernbase);
 
 See either [Example.cs](librpc/Example.cs) or look at the [RPC documentation](librpc/jkpatch.pdf).
 
+You can read/write memory, call functions, read/write kernel memory, and even load elfs.
+
 ### Coming Soon
-- Add kernel read/write/allocate/free/execute commands
 - General code clean up and refactoring
-- Inject elfs into processes (easy)
 
 Thank you to flatz, idc, zecoxao, hitodama, osdev.org!
 
