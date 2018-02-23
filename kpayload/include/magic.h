@@ -46,6 +46,7 @@
 #define __vm_map_unlock_read					0x43DF60
 #define __vmspace_free							0x43DB70
 #define __vm_map_delete							0x440580
+#define __vm_map_protect						0x442270
 #define __vmspace_acquire_ref					0x43DD40
 #define __vm_map_findspace						0x440B60
 #define __vm_map_insert							0x43EEC0

@@ -35,13 +35,13 @@ int is_fake_self(struct self_context *ctx) {
 	return 0;
 }
 
-int sceSblAuthMgrGetElfHeader(struct self_context *ctx, struct elf64_ehdr **ehdr) {
+int sceSblAuthMgrGetElfHeader(struct self_context *ctx, struct Elf64_Ehdr **ehdr) {
 	struct self_header *self_hdr;
-	struct elf64_ehdr *elf_hdr;
+	struct Elf64_Ehdr *elf_hdr;
 	size_t pdata_size;
 
 	if (ctx->format == SELF_FORMAT_ELF) {
-		elf_hdr = (struct elf64_ehdr*)ctx->header;
+		elf_hdr = (struct Elf64_Ehdr*)ctx->header;
 		if (ehdr) {
 			*ehdr = elf_hdr;
 		}
@@ -50,8 +50,8 @@ int sceSblAuthMgrGetElfHeader(struct self_context *ctx, struct elf64_ehdr **ehdr
 	} else if (ctx->format == SELF_FORMAT_SELF) {
 		self_hdr = (struct self_header*)ctx->header;
 		pdata_size = self_hdr->header_size - sizeof(struct self_entry) * self_hdr->num_entries - sizeof(struct self_header);
-		if (pdata_size >= sizeof(struct elf64_ehdr) && (pdata_size & 0x0F) == 0) {
-			elf_hdr = (struct elf64_ehdr*)((uint8_t*)self_hdr + sizeof(struct self_header) + sizeof(struct self_entry) * self_hdr->num_entries);
+		if (pdata_size >= sizeof(struct Elf64_Ehdr) && (pdata_size & 0x0F) == 0) {
+			elf_hdr = (struct Elf64_Ehdr*)((uint8_t*)self_hdr + sizeof(struct self_header) + sizeof(struct self_entry) * self_hdr->num_entries);
 			if (ehdr) {
 				*ehdr = elf_hdr;
 			}
@@ -68,7 +68,7 @@ int sceSblAuthMgrGetElfHeader(struct self_context *ctx, struct elf64_ehdr **ehdr
 int build_self_auth_info_fake(struct self_context *ctx, struct self_auth_info *parent_auth_info, struct self_auth_info *auth_info) {
 	struct self_auth_info fake_auth_info;
 	struct self_ex_info *ex_info = NULL;
-	struct elf64_ehdr *ehdr = NULL;
+	struct Elf64_Ehdr *ehdr = NULL;
 	int result;
 
 	if (!ctx || !parent_auth_info || !auth_info) {
@@ -98,7 +98,7 @@ int build_self_auth_info_fake(struct self_context *ctx, struct self_auth_info *p
 
 	result = sceSblAuthMgrGetSelfAuthInfoFake(ctx, &fake_auth_info);
 	if (result) {
-		switch (ehdr->type) {
+		switch (ehdr->e_type) {
 		case ELF_ET_EXEC:
 		case ELF_ET_SCE_EXEC:
 		case ELF_ET_SCE_EXEC_ASLR: {

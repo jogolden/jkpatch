@@ -61,6 +61,7 @@ int (*vm_map_insert)(struct vm_map * map, uint64_t object, uint64_t offset, uint
 void (*vm_map_lock)(struct vm_map * map);
 void (*vm_map_unlock)(struct vm_map * map);
 int (*vm_map_delete)(struct vm_map * map, uint64_t start, uint64_t end);
+int (*vm_map_protect)(struct vm_map * map, uint64_t start, uint64_t end, int new_prot, uint64_t set_max);
 
 // sce
 int (*sceSblServiceMailbox)(unsigned long service_id, uint8_t request[SBL_MSG_SERVICE_MAILBOX_MAX_SIZE], void *response);

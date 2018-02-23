@@ -15,6 +15,13 @@ namespace librpc
         private Socket sock = null;
         private IPEndPoint enp = null;
         private bool connected = false;
+        public bool IsConnected
+        {
+            get
+            {
+                return connected;
+            }
+        }
 
         private static int RPC_PORT = 733;
         private static uint RPC_PACKET_MAGIC = 0xBDAABBCC;
@@ -29,8 +36,12 @@ namespace librpc
             RPC_PROC_INFO = 0xBD000004,
             RPC_PROC_INTALL = 0xBD000005,
             RPC_PROC_CALL = 0xBD000006,
-            RPC_END = 0xBD000007,
-            RPC_REBOOT = 0xBD000008
+            RPC_PROC_ELF = 0xBD000007,
+            RPC_END = 0xBD000008,
+            RPC_REBOOT = 0xBD000009,
+            RPC_KERN_BASE = 0xBD00000A,
+            RPC_KERN_READ = 0xBD00000B,
+            RPC_KERN_WRITE = 0xBD00000C
         };
 
         /** packet sizes **/
@@ -44,6 +55,10 @@ namespace librpc
         private static int RPC_PROC_INSTALL2_SIZE = 12;
         private static int RPC_PROC_CALL1_SIZE = 68;
         private static int RPC_PROC_CALL2_SIZE = 12;
+        private static int RPC_PROC_ELF_SIZE = 8;
+        private static int RPC_KERN_BASE_SIZE = 8;
+        private static int RPC_KERN_READ_SIZE = 12;
+        private static int RPC_KERN_WRITE_SIZE = 12;
 
         /** status **/
         private enum RPC_STATUS : uint
@@ -57,7 +72,8 @@ namespace librpc
             RPC_INFO_NO_MAP = 0x80000006,
             RPC_NO_PROC = 0xF0000007,
             RPC_INSTALL_ERROR = 0xF0000008,
-            RPC_CALL_ERROR = 0xF0000009
+            RPC_CALL_ERROR = 0xF0000009,
+            RPC_ELF_ERROR = 0xF000000A,
         };
 
         /** messages **/
@@ -71,7 +87,8 @@ namespace librpc
             { RPC_STATUS.RPC_INFO_ERROR, "process information error"},
             { RPC_STATUS.RPC_NO_PROC, "no such process error"},
             { RPC_STATUS.RPC_INSTALL_ERROR, "could not install rpc" },
-            { RPC_STATUS.RPC_CALL_ERROR, "could not call address" }
+            { RPC_STATUS.RPC_CALL_ERROR, "could not call address" },
+            { RPC_STATUS.RPC_ELF_ERROR, "could not map elf" }
         };
 
         /// <summary>
@@ -337,6 +354,81 @@ namespace librpc
         }
 
         /// <summary>
+        /// Get kernel base address
+        /// </summary>
+        /// <returns></returns>
+        public ulong KernelBase()
+        {
+            if (!connected)
+            {
+                throw new Exception("librpc: not connected");
+            }
+
+            SendCMDPacket(RPC_CMDS.RPC_KERN_BASE, 0);
+            CheckRPCStatus();
+            return BitConverter.ToUInt64(ReceiveData(RPC_KERN_BASE_SIZE), 0);
+
+        }
+
+        /// <summary>
+        /// Read memory from kernel
+        /// </summary>
+        /// <param name="address">Memory address</param>
+        /// <param name="length">Data length</param>
+        /// <returns></returns>
+        public byte[] KernelReadMemory(ulong address, int length)
+        {
+            if (!connected)
+            {
+                throw new Exception("librpc: not connected");
+            }
+
+            SendCMDPacket(RPC_CMDS.RPC_KERN_READ, RPC_KERN_READ_SIZE);
+            SendPacketData(RPC_KERN_READ_SIZE, address, length);
+            CheckRPCStatus();
+            return ReceiveData(length);
+        }
+
+        /// <summary>
+        /// Write memory in kernel
+        /// </summary>
+        /// <param name="address">Memory address</param>
+        /// <param name="data">Data</param>
+        public void KernelWriteMemory(ulong address, byte[] data)
+        {
+            if (!connected)
+            {
+                throw new Exception("librpc: not connected");
+            }
+
+            if (data.Length > RPC_MAX_DATA_LEN)
+            {
+                // write RPC_MAX_DATA_LEN
+                byte[] nowdata = SubArray(data, 0, RPC_MAX_DATA_LEN);
+
+                SendCMDPacket(RPC_CMDS.RPC_KERN_WRITE, RPC_KERN_WRITE_SIZE);
+                SendPacketData(RPC_KERN_WRITE_SIZE, address, RPC_MAX_DATA_LEN);
+                CheckRPCStatus();
+                SendData(nowdata, RPC_MAX_DATA_LEN);
+                CheckRPCStatus();
+
+                // call WriteMemory again with rest of it
+                int nextlength = data.Length - RPC_MAX_DATA_LEN;
+                ulong nextaddr = address + (ulong)RPC_MAX_DATA_LEN;
+                byte[] nextdata = SubArray(data, RPC_MAX_DATA_LEN, nextlength);
+                KernelWriteMemory(nextaddr, nextdata);
+            }
+            else if (data.Length > 0)
+            {
+                SendCMDPacket(RPC_CMDS.RPC_KERN_WRITE, RPC_KERN_WRITE_SIZE);
+                SendPacketData(RPC_KERN_WRITE_SIZE, address, data.Length);
+                CheckRPCStatus();
+                SendData(data, data.Length);
+                CheckRPCStatus();
+            }
+        }
+
+        /// <summary>
         /// Get current process list
         /// </summary>
         /// <returns></returns>
@@ -424,6 +516,11 @@ namespace librpc
         /// <returns></returns>
         public ulong InstallRPC(int pid)
         {
+            if (!connected)
+            {
+                throw new Exception("librpc: not connected");
+            }
+
             SendCMDPacket(RPC_CMDS.RPC_PROC_INTALL, RPC_PROC_INSTALL1_SIZE);
             SendPacketData(RPC_PROC_INSTALL1_SIZE, pid);
             CheckRPCStatus();
@@ -441,6 +538,11 @@ namespace librpc
         /// <returns></returns>
         public ulong Call(int pid, ulong rpcstub, ulong address, params object[] args)
         {
+            if (!connected)
+            {
+                throw new Exception("librpc: not connected");
+            }
+
             SendCMDPacket(RPC_CMDS.RPC_PROC_CALL, RPC_PROC_CALL1_SIZE);
 
             MemoryStream rs = new MemoryStream();
@@ -538,10 +640,38 @@ namespace librpc
         }
 
         /// <summary>
+        /// Load an elf into a process
+        /// </summary>
+        /// <param name="pid">Process ID</param>
+        /// <param name="elf">Elf bytes</param>
+        public void LoadElf(int pid, byte[] elf)
+        {
+            SendCMDPacket(RPC_CMDS.RPC_PROC_ELF, RPC_PROC_ELF_SIZE);
+            SendPacketData(RPC_PROC_ELF_SIZE, pid, elf.Length);
+            SendData(elf, elf.Length);
+            CheckRPCStatus();
+        }
+
+        /// <summary>
+        /// Load an elf into a process
+        /// </summary>
+        /// <param name="pid">Process ID</param>
+        /// <param name="filename">Elf file path</param>
+        public void LoadElf(int pid, string filename)
+        {
+            LoadElf(pid, File.ReadAllBytes(filename));
+        }
+
+        /// <summary>
         /// Reboot console
         /// </summary>
         public void Reboot()
         {
+            if (!connected)
+            {
+                throw new Exception("librpc: not connected");
+            }
+
             SendCMDPacket(RPC_CMDS.RPC_REBOOT, 0);
             sock.Dispose();
             connected = false;
@@ -631,6 +761,32 @@ namespace librpc
         public void WriteDouble(int pid, ulong address, double value)
         {
             WriteMemory(pid, address, BitConverter.GetBytes(value));
+        }
+
+        /* string */
+        public string ReadString(int pid, ulong address)
+        {
+            string str = "";
+            ulong i = 0;
+
+            while (true)
+            {
+                byte value = ReadByte(pid, address + i);
+                if(value == 0)
+                {
+                    break;
+                }
+
+                str += Convert.ToChar(value);
+                i++;
+            }
+
+            return str;
+        }
+        public void WriteString(int pid, ulong address, string str)
+        {
+            WriteMemory(pid, address, Encoding.ASCII.GetBytes(str));
+            WriteByte(pid, address + (ulong)str.Length, 0);
         }
     }
 }

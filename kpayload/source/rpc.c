@@ -5,6 +5,350 @@
 
 struct proc *krpcproc;
 
+int rpc_proc_load(struct proc *p, uint64_t address) {
+	void *rpcldraddr = NULL;
+	void *stackaddr = NULL;
+	struct proc_vm_map_entry *entries = NULL;
+	size_t num_entries = 0;
+	size_t n = 0;
+	int r = 0;
+
+	uint64_t ldrsize = sizeof(rpcldr);
+	ldrsize += (PAGE_SIZE - (ldrsize % PAGE_SIZE));
+
+	uint64_t stacksize = 0x80000;
+
+	// allocate rpc ldr
+	r = proc_allocate(p, &rpcldraddr, ldrsize);
+	if (r) {
+		goto error;
+	}
+
+	// allocate stack
+	r = proc_allocate(p, &stackaddr, stacksize);
+	if (r) {
+		goto error;
+	}
+
+	// write loader
+	r = proc_write_mem(p, rpcldraddr, sizeof(rpcldr), (void *)rpcldr, &n);
+	if (r) {
+		goto error;
+	}
+
+	// patch suword_lwpid
+	// has a check to see if child_tid/parent_tid is in kernel memory, and it in so patch it
+	uint64_t kernbase = getkernbase();
+	uint64_t CR0 = __readcr0();
+	uint16_t *suword_lwpid = (uint16_t *)(kernbase + 0x287074);
+	__writecr0(CR0 & ~CR0_WP);
+	*suword_lwpid = 0x9090;
+	__writecr0(CR0);
+
+	// donor thread
+	struct thread *thr = TAILQ_FIRST(&p->p_threads);
+
+	// find libkernel base
+	r = proc_get_vm_map(p, &entries, &num_entries);
+	if (r) {
+		goto error;
+	}
+
+	// offsets are for 4.05 libraries
+	// todo: write patch finder
+
+	// libkernel.sprx
+	// 0x11570 scePthreadCreate
+	// 0x7CD20 thr_initial
+	// offset 0x6B7B0
+
+	// libkernel_web.sprx
+	// 0x11570 scePthreadCreate
+	// 0x7CD20 thr_initial
+	// offset 0x6B7B0
+
+	// libkernel_sys.sprx
+	// 0x120A0 scePthreadCreate
+	// 0x80D20 thr_initial
+	// offset 0x6EC80
+
+	uint64_t _scePthreadAttrInit = 0, _scePthreadAttrSetstacksize = 0, _scePthreadCreate = 0, _thr_initial = 0;
+	for (int i = 0; i < num_entries; i++) {
+		if (entries[i].prot != (PROT_READ | PROT_EXEC)) {
+			continue;
+		}
+
+		if (!memcmp(entries[i].name, "libkernel.sprx", 14) ||
+		        !memcmp(entries[i].name, "libkernel_web.sprx", 18)) {
+			_scePthreadAttrInit = entries[i].start + 0x11130;
+			_scePthreadAttrSetstacksize = entries[i].start + 0x11150;
+			_scePthreadCreate = entries[i].start + 0x11570;
+			_thr_initial = entries[i].start + 0x7CD20;
+			break;
+		}
+
+		if (!memcmp(entries[i].name, "libkernel_sys.sprx", 18)) {
+			_scePthreadAttrInit = entries[i].start + 0x11C60;
+			_scePthreadAttrSetstacksize = entries[i].start + 0x11C80;
+			_scePthreadCreate = entries[i].start + 0x120A0;
+			_thr_initial = entries[i].start + 0x80D20;
+			break;
+		}
+	}
+
+	if (!_scePthreadCreate || !_thr_initial) {
+		goto error;
+	}
+
+	// write variables
+	r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, stubentry), sizeof(address), (void *)&address, &n);
+	if (r) {
+		goto error;
+	}
+
+	r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, scePthreadAttrInit), sizeof(_scePthreadAttrInit), (void *)&_scePthreadAttrInit, &n);
+	if (r) {
+		goto error;
+	}
+
+	r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, scePthreadAttrSetstacksize), sizeof(_scePthreadAttrSetstacksize), (void *)&_scePthreadAttrSetstacksize, &n);
+	if (r) {
+		goto error;
+	}
+
+	r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, scePthreadCreate), sizeof(_scePthreadCreate), (void *)&_scePthreadCreate, &n);
+	if (r) {
+		goto error;
+	}
+
+	r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, thr_initial), sizeof(_thr_initial), (void *)&_thr_initial, &n);
+	if (r) {
+		goto error;
+	}
+
+	// execute loader
+	uint64_t ldrentryaddr = (uint64_t)rpcldraddr + *(uint64_t *)(rpcldr + 4);
+	r = create_thread(thr, NULL, (void *)ldrentryaddr, NULL, stackaddr, stacksize, NULL, NULL, NULL, 0, NULL);
+	if (r) {
+		goto error;
+	}
+
+	// wait until loader is done
+	uint8_t ldrdone = 0;
+	while (!ldrdone) {
+		r = proc_read_mem(p, (void *)(rpcldraddr + offsetof(struct rpcldr_header, ldrdone)), sizeof(ldrdone), &ldrdone, &n);
+		if (r) {
+			goto error;
+		}
+	}
+
+error:
+	if (entries) {
+		dealloc(entries);
+	}
+
+	if (rpcldraddr) {
+		proc_deallocate(p, rpcldraddr, ldrsize);
+	}
+
+	if (stackaddr) {
+		proc_deallocate(p, stackaddr, stacksize);
+	}
+
+	return r;
+}
+
+inline struct Elf64_Phdr *elf_pheader(struct Elf64_Ehdr *hdr) {
+	if (!hdr->e_phoff) {
+		return NULL;
+	}
+
+	return (struct Elf64_Phdr *)((uint64_t)hdr + hdr->e_phoff);
+}
+
+inline struct Elf64_Phdr *elf_segment(struct Elf64_Ehdr *hdr, int idx) {
+	uint64_t addr = (uint64_t)elf_pheader(hdr);
+	if (!addr) {
+		return NULL;
+	}
+
+	return (struct Elf64_Phdr *)(addr + (hdr->e_phentsize * idx));
+}
+
+inline struct Elf64_Shdr *elf_sheader(struct Elf64_Ehdr *hdr) {
+	if (!hdr->e_shoff) {
+		return NULL;
+	}
+
+	return (struct Elf64_Shdr *)((uint64_t)hdr + hdr->e_shoff);
+}
+
+inline struct Elf64_Shdr *elf_section(struct Elf64_Ehdr *hdr, int idx) {
+	uint64_t addr = (uint64_t)elf_sheader(hdr);
+	if (!addr) {
+		return NULL;
+	}
+
+	return (struct Elf64_Shdr *)(addr + (hdr->e_shentsize * idx));
+}
+
+int elf_mapped_size(void *elf, size_t *msize) {
+	struct Elf64_Ehdr *ehdr = (struct Elf64_Ehdr *)elf;
+
+	// check magic
+	if (memcmp(ehdr->e_ident, ElfMagic, 4)) {
+		return 1;
+	}
+
+	size_t s = 0;
+
+	struct Elf64_Phdr *phdr = elf_pheader(ehdr);
+	if (phdr) {
+		// use segments
+		for (int i = 0; i < ehdr->e_phnum; i++) {
+			struct Elf64_Phdr *phdr = elf_segment(ehdr, i);
+
+			uint64_t delta = phdr->p_paddr + phdr->p_memsz;
+			if (delta > s) {
+				s = delta;
+			}
+		}
+	} else {
+		// use sections
+		for (int i = 0; i < ehdr->e_shnum; i++) {
+			struct Elf64_Shdr *shdr = elf_section(ehdr, i);
+
+			uint64_t delta = shdr->sh_addr + shdr->sh_size;
+			if (delta > s) {
+				s = delta;
+			}
+		}
+	}
+
+	if (msize) {
+		*msize = s;
+	}
+
+	return 0;
+}
+
+int proc_map_elf(struct proc *p, void *elf, void *exec) {
+	struct Elf64_Ehdr *ehdr = (struct Elf64_Ehdr *)elf;
+
+	struct Elf64_Phdr *phdr = elf_pheader(ehdr);
+	if (phdr) {
+		// use segments
+		for (int i = 0; i < ehdr->e_phnum; i++) {
+			struct Elf64_Phdr *phdr = elf_segment(ehdr, i);
+
+			if (phdr->p_filesz) {
+				//memcpy((uint8_t *)exec + phdr->p_paddr, (uint8_t *)elf + phdr->p_offset, phdr->p_filesz);
+
+				proc_write_mem(p, (void *)((uint8_t *)exec + phdr->p_paddr), phdr->p_filesz, (void *)((uint8_t *)elf + phdr->p_offset), NULL);
+			}
+
+			/*if (phdr->p_memsz - phdr->p_filesz) {
+				memset((uint8_t *)exec + phdr->p_paddr + phdr->p_filesz, NULL, phdr->p_memsz - phdr->p_filesz);
+			}*/
+		}
+	} else {
+		// use sections
+		for (int i = 0; i < ehdr->e_shnum; i++) {
+			struct Elf64_Shdr *shdr = elf_section(ehdr, i);
+
+			if (!(shdr->sh_flags & SHF_ALLOC)) {
+				continue;
+			}
+
+			if (shdr->sh_size) {
+				//memcpy((uint8_t *)exec + shdr->sh_addr, (uint8_t *)elf + shdr->sh_offset, shdr->sh_size);
+
+				proc_write_mem(p, (void *)((uint8_t *)exec + shdr->sh_addr), shdr->sh_size, (void *)((uint8_t *)elf + shdr->sh_offset), NULL);
+			}
+		}
+	}
+
+	return 0;
+}
+
+int proc_relocate_elf(struct proc *p, void *elf, void *exec) {
+	struct Elf64_Ehdr *ehdr = (struct Elf64_Ehdr *)elf;
+
+	for (int i = 0; i < ehdr->e_shnum; i++) {
+		struct Elf64_Shdr *shdr = elf_section(ehdr, i);
+
+		// check table
+		if (shdr->sh_type == SHT_REL) {
+			// process each entry in the table
+			for (int j = 0; j < shdr->sh_size / shdr->sh_entsize; j++) {
+				struct Elf64_Rela *reltab = &((struct Elf64_Rela *)((uint64_t)ehdr + shdr->sh_offset))[j];
+				uint8_t **ref = (uint8_t **)((uint8_t *)exec + reltab->r_offset);
+				uint8_t *value = NULL;
+
+				switch (ELF64_R_TYPE(reltab->r_info)) {
+				case R_X86_64_RELATIVE:
+					// *ref = (uint8_t *)exec + reltab->r_addend;
+					value = (uint8_t *)exec + reltab->r_addend;
+					proc_write_mem(p, ref, sizeof(value), (void *)&value, NULL);
+					break;
+				case R_X86_64_64:
+				case R_X86_64_JUMP_SLOT:
+				case R_X86_64_GLOB_DAT:
+					// TODO: relocations
+					break;
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
+int rpc_proc_map_elf(struct proc *p, void *elf, uint64_t *elfbase, uint64_t *entry) {
+	void *elfaddr = NULL;
+	size_t msize = 0;
+	int r = 0;
+
+	struct Elf64_Ehdr *ehdr = (struct Elf64_Ehdr *)elf;
+
+	r = elf_mapped_size(elf, &msize);
+	if (r) {
+		goto error;
+	}
+
+	// resize to pages
+	msize += (PAGE_SIZE - (msize % PAGE_SIZE));
+
+	// allocate
+	r = proc_allocate(p, &elfaddr, msize);
+	if (r) {
+		goto error;
+	}
+
+	// map
+	r = proc_map_elf(p, elf, elfaddr);
+	if (r) {
+		goto error;
+	}
+
+	// relocate
+	r = proc_relocate_elf(p, elf, elfaddr);
+	if (r) {
+		goto error;
+	}
+
+	if (elfbase) {
+		*elfbase = (uint64_t)elfaddr;
+	}
+
+	if (entry) {
+		*entry = (uint64_t)elfaddr + ehdr->e_entry;
+	}
+
+error:
+	return r;
+}
+
 int rpc_send_data(int fd, void *data, int length) {
 	uint32_t left = length;
 	uint32_t offset = 0;
@@ -313,47 +657,17 @@ error:
 }
 
 int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
-	void *rpcldraddr = NULL;
 	void *stubaddr = NULL;
-	void *stackaddr = NULL;
-	struct proc_vm_map_entry *entries = NULL;
-	size_t num_entries = 0;
 	size_t n = 0;
 	int r = 0;
-
-	uint64_t ldrsize = sizeof(rpcldr);
-	ldrsize += (PAGE_SIZE - (ldrsize % PAGE_SIZE));
 
 	uint64_t stubsize = sizeof(rpcstub);
 	stubsize += (PAGE_SIZE - (stubsize % PAGE_SIZE));
 
-	uint64_t stacksize = 0x80000;
-
 	struct proc *p = proc_find_by_pid(pinstall->pid);
 	if (p) {
-		// allocate rpc ldr
-		r = proc_allocate(p, &rpcldraddr, ldrsize);
-		if (r) {
-			rpc_send_status(fd, RPC_INSTALL_ERROR);
-			goto error;
-		}
-
-		uint64_t stubsize = sizeof(rpcstub);
+		// allocate stub
 		r = proc_allocate(p, &stubaddr, stubsize);
-		if (r) {
-			rpc_send_status(fd, RPC_INSTALL_ERROR);
-			goto error;
-		}
-
-		// allocate stack
-		r = proc_allocate(p, &stackaddr, stacksize);
-		if (r) {
-			rpc_send_status(fd, RPC_INSTALL_ERROR);
-			goto error;
-		}
-
-		// write loader
-		r = proc_write_mem(p, rpcldraddr, sizeof(rpcldr), (void *)rpcldr, &n);
 		if (r) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
 			goto error;
@@ -366,123 +680,12 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 			goto error;
 		}
 
-		// patch suword_lwpid
-		// has a check to see if child_tid/parent_tid is in kernel memory, and it in so patch it
-		uint64_t kernbase = getkernbase();
-		uint64_t CR0 = __readcr0();
-		uint16_t *suword_lwpid = (uint16_t *)(kernbase + 0x287074);
-		__writecr0(CR0 & ~CR0_WP);
-		*suword_lwpid = 0x9090;
-		__writecr0(CR0);
-
-		// donor thread
-		struct thread *thr = TAILQ_FIRST(&p->p_threads);
-
-		// find libkernel base
-		r = proc_get_vm_map(p, &entries, &num_entries);
-		if (r) {
-			rpc_send_status(fd, RPC_INFO_ERROR);
-			r = 1;
-			goto error;
-		}
-
-		// offsets are for 4.05 libraries
-		// todo: write patch finder
-
-		// libkernel.sprx
-		// 0x11570 scePthreadCreate
-		// 0x7CD20 thr_initial
-		// offset 0x6B7B0
-
-		// libkernel_web.sprx
-		// 0x11570 scePthreadCreate
-		// 0x7CD20 thr_initial
-		// offset 0x6B7B0
-
-		// libkernel_sys.sprx
-		// 0x120A0 scePthreadCreate
-		// 0x80D20 thr_initial
-		// offset 0x6EC80
-
-		uint64_t _scePthreadAttrInit = 0, _scePthreadAttrSetstacksize = 0, _scePthreadCreate = 0, _thr_initial = 0;
-		for (int i = 0; i < num_entries; i++) {
-			if (entries[i].prot != (PROT_READ | PROT_EXEC)) {
-				continue;
-			}
-
-			if (!memcmp(entries[i].name, "libkernel.sprx", 14) ||
-			        !memcmp(entries[i].name, "libkernel_web.sprx", 18)) {
-				_scePthreadAttrInit = entries[i].start + 0x11130;
-				_scePthreadAttrSetstacksize = entries[i].start + 0x11150;
-				_scePthreadCreate = entries[i].start + 0x11570;
-				_thr_initial = entries[i].start + 0x7CD20;
-				break;
-			}
-
-			if (!memcmp(entries[i].name, "libkernel_sys.sprx", 18)) {
-				_scePthreadAttrInit = entries[i].start + 0x11C60;
-				_scePthreadAttrSetstacksize = entries[i].start + 0x11C80;
-				_scePthreadCreate = entries[i].start + 0x120A0;
-				_thr_initial = entries[i].start + 0x80D20;
-				break;
-			}
-		}
-
-		if (!_scePthreadCreate || !_thr_initial) {
-			rpc_send_status(fd, RPC_INFO_ERROR);
-			r = 1;
-			goto error;
-		}
-
-		// write variables
+		// load stub
 		uint64_t stubentryaddr = (uint64_t)stubaddr + *(uint64_t *)(rpcstub + 4);
-		r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, stubentry), sizeof(stubentryaddr), (void *)&stubentryaddr, &n);
-		if (r) {
+		if (rpc_proc_load(p, stubentryaddr)) {
 			rpc_send_status(fd, RPC_INSTALL_ERROR);
+			r = 1;
 			goto error;
-		}
-
-		r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, scePthreadAttrInit), sizeof(_scePthreadAttrInit), (void *)&_scePthreadAttrInit, &n);
-		if (r) {
-			rpc_send_status(fd, RPC_INSTALL_ERROR);
-			goto error;
-		}
-
-		r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, scePthreadAttrSetstacksize), sizeof(_scePthreadAttrSetstacksize), (void *)&_scePthreadAttrSetstacksize, &n);
-		if (r) {
-			rpc_send_status(fd, RPC_INSTALL_ERROR);
-			goto error;
-		}
-
-		r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, scePthreadCreate), sizeof(_scePthreadCreate), (void *)&_scePthreadCreate, &n);
-		if (r) {
-			rpc_send_status(fd, RPC_INSTALL_ERROR);
-			goto error;
-		}
-
-		r = proc_write_mem(p, rpcldraddr + offsetof(struct rpcldr_header, thr_initial), sizeof(_thr_initial), (void *)&_thr_initial, &n);
-		if (r) {
-			rpc_send_status(fd, RPC_INSTALL_ERROR);
-			goto error;
-		}
-
-		// execute loader
-		uint64_t ldrentryaddr = (uint64_t)rpcldraddr + *(uint64_t *)(rpcldr + 4);
-		r = create_thread(thr, NULL, (void *)ldrentryaddr, NULL, stackaddr, 0x8000, NULL, NULL, NULL, 0, NULL);
-		if (r) {
-			rpc_send_status(fd, RPC_INSTALL_ERROR);
-			goto error;
-		}
-
-		// wait until loader is done
-		uint8_t ldrdone = 0;
-		while (!ldrdone) {
-			r = proc_read_mem(p, (void *)(rpcldraddr + offsetof(struct rpcldr_header, ldrdone)), sizeof(ldrdone), &ldrdone, &n);
-			if (r) {
-				rpc_send_status(fd, RPC_CALL_ERROR);
-				r = 1;
-				goto error;
-			}
 		}
 
 		struct rpc_proc_install2 data;
@@ -505,18 +708,6 @@ int rpc_handle_install(int fd, struct rpc_proc_install1 *pinstall) {
 	}
 
 error:
-	if (entries) {
-		dealloc(entries);
-	}
-
-	if (rpcldraddr) {
-		proc_deallocate(p, rpcldraddr, ldrsize);
-	}
-
-	if (stackaddr) {
-		proc_deallocate(p, stackaddr, stacksize);
-	}
-
 	return r;
 }
 
@@ -599,6 +790,184 @@ error:
 	return r;
 }
 
+int rpc_handle_elf(int fd, struct rpc_proc_elf *pelf) {
+	struct proc_vm_map_entry *entries = NULL;
+	size_t num_entries = 0;
+	uint8_t *data = NULL;
+	int r = 0;
+
+	struct proc *p = proc_find_by_pid(pelf->pid);
+	if (p) {
+		// allocate
+		data = (uint8_t *)alloc(pelf->size);
+		if (!data) {
+			rpc_send_status(fd, RPC_ELF_ERROR);
+			r = 1;
+			goto error;
+		}
+
+		// recv the elf
+		rpc_recv_data(fd, data, pelf->size, 1);
+		if (net_errno) {
+			goto error;
+		}
+
+		// map the elf
+		// int rpc_proc_map_elf(struct proc *p, void *elf, uint64_t *elfbase, uint64_t *entry)
+		uint64_t entry = 0;
+		r = rpc_proc_map_elf(p, data, NULL, &entry);
+		if (r) {
+			rpc_send_status(fd, RPC_ELF_ERROR);
+			goto error;
+		}
+
+		// change main executable protection to rwx
+		r = proc_get_vm_map(p, &entries, &num_entries);
+		if (r) {
+			rpc_send_status(fd, RPC_ELF_ERROR);
+			r = 1;
+			goto error;
+		}
+
+		for (int i = 0; i < num_entries; i++) {
+			if (entries[i].prot != (PROT_READ | PROT_EXEC)) {
+				continue;
+			}
+
+			if (!memcmp(entries[i].name, "executable", 10)) {
+				size_t size = entries[i].end = entries[i].start;
+				proc_mprotect(p, (void *)entries[i].start, size, VM_PROT_ALL);
+				break;
+			}
+		}
+
+		// call loader
+		if (rpc_proc_load(p, entry)) {
+			rpc_send_status(fd, RPC_ELF_ERROR);
+			r = 1;
+			goto error;
+		}
+
+		rpc_send_status(fd, RPC_SUCCESS);
+	} else {
+		rpc_send_status(fd, RPC_NO_PROC);
+		r = 1;
+		goto error;
+	}
+
+error:
+	if (entries) {
+		dealloc(entries);
+	}
+
+	if (data) {
+		dealloc(data);
+	}
+
+	return r;
+}
+
+int rpc_handle_kbase(int fd, struct rpc_packet *packet) {
+	int r = 0;
+
+	uint64_t kernbase = getkernbase();
+
+	rpc_send_status(fd, RPC_SUCCESS);
+	if (net_errno) {
+		goto error;
+	}
+
+	rpc_send_data(fd, &kernbase, RPC_KERN_BASE_SIZE);
+	if (net_errno) {
+		goto error;
+	}
+
+error:
+	return r;
+}
+
+int rpc_handle_kread(int fd, struct rpc_kern_read *pread) {
+	uint8_t *data = NULL;
+	int r = 0;
+
+	int length = pread->length;
+	uint32_t left = length;
+	uint32_t offset = 0;
+
+	rpc_send_status(fd, RPC_SUCCESS);
+	if (net_errno) {
+		goto error;
+	}
+
+	data = (uint8_t *)alloc(RPC_MAX_DATA_LEN);
+
+	while (left) {
+		uint32_t read = left;
+		if (left > RPC_MAX_DATA_LEN) {
+			read = RPC_MAX_DATA_LEN;
+		}
+
+		memcpy(data, (void *)(pread->address + offset), (size_t)read);
+
+		// send back data
+		r = rpc_send_data(fd, data, read);
+		if (!r) {
+			r = 1;
+			goto error;
+		}
+
+		left -= read;
+		offset += read;
+	}
+
+error:
+	if (data) {
+		dealloc(data);
+	}
+
+	return r;
+}
+
+int rpc_handle_kwrite(int fd, struct rpc_kern_write *pwrite) {
+	uint8_t *data = NULL;
+	int r = 0;
+
+	int length = pwrite->length;
+
+	if (length > RPC_MAX_DATA_LEN) {
+		rpc_send_status(fd, RPC_TOO_MUCH_DATA);
+		r = 1;
+		goto error;
+	}
+
+	rpc_send_status(fd, RPC_SUCCESS);
+	if (net_errno) {
+		goto error;
+	}
+
+	data = (uint8_t *)alloc(length);
+	rpc_recv_data(fd, data, length, 1);
+	if (net_errno) {
+		goto error;
+	}
+
+	uint64_t CR0 = __readcr0();
+	__writecr0(CR0 & ~CR0_WP);
+
+	memcpy((void *)pwrite->address, data, (size_t)length);
+
+	__writecr0(CR0);
+
+	rpc_send_status(fd, RPC_SUCCESS);
+
+error:
+	if (data) {
+		dealloc(data);
+	}
+
+	return r;
+}
+
 int rpc_cmd_handler(int fd, struct rpc_packet *packet) {
 	//uprintf("packet cmd %X\n", packet->cmd);
 
@@ -631,12 +1000,28 @@ int rpc_cmd_handler(int fd, struct rpc_packet *packet) {
 		rpc_handle_call(fd, (struct rpc_proc_call1 *)packet->data);
 		break;
 	}
+	case RPC_PROC_ELF: {
+		rpc_handle_elf(fd, (struct rpc_proc_elf *)packet->data);
+		break;
+	}
 	case RPC_END: {
 		return 1;
 		break;
 	}
 	case RPC_REBOOT: {
 		kern_reboot(0);
+		break;
+	}
+	case RPC_KERN_BASE: {
+		rpc_handle_kbase(fd, NULL);
+		break;
+	}
+	case RPC_KERN_READ: {
+		rpc_handle_kread(fd, (struct rpc_kern_read *)packet->data);
+		break;
+	}
+	case RPC_KERN_WRITE: {
+		rpc_handle_kwrite(fd, (struct rpc_kern_write *)packet->data);
 		break;
 	}
 	}

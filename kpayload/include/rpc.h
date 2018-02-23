@@ -22,8 +22,12 @@
 #define RPC_PROC_INFO		0xBD000004
 #define RPC_PROC_INTALL		0xBD000005
 #define RPC_PROC_CALL		0xBD000006
-#define RPC_END				0xBD000007
-#define RPC_REBOOT			0xBD000008
+#define RPC_PROC_ELF		0xBD000007
+#define RPC_END				0xBD000008
+#define RPC_REBOOT			0xBD000009
+#define RPC_KERN_BASE		0xBD00000A
+#define RPC_KERN_READ		0xBD00000B
+#define RPC_KERN_WRITE		0xBD00000C
 
 #define RPC_VALID_CMD(cmd)	(((cmd & 0xFF000000) >> 24) == 0xBD)
 
@@ -40,6 +44,7 @@
 #define RPC_NO_PROC				0xF0000007
 #define RPC_INSTALL_ERROR		0xF0000008
 #define RPC_CALL_ERROR			0xF0000009
+#define RPC_ELF_ERROR			0xF000000A
 
 #define RPC_FATAL_STATUS(s) ((s >> 28) == 15)
 
@@ -130,6 +135,33 @@ struct rpc_proc_call2 {
 
 #define RPC_PROC_CALL1_SIZE 68
 #define RPC_PROC_CALL2_SIZE 12
+
+struct rpc_proc_elf {
+	uint32_t pid;
+	uint32_t size;
+} __attribute__((packed));
+
+#define RPC_PROC_ELF_SIZE 8
+
+struct rpc_kern_base {
+	uint64_t kernbase;
+} __attribute__((packed));
+
+#define RPC_KERN_BASE_SIZE 8
+
+struct rpc_kern_read {
+	uint64_t address;
+	uint32_t length;
+} __attribute__((packed));
+
+#define RPC_KERN_READ_SIZE 12
+
+struct rpc_kern_write {
+	uint64_t address;
+	uint32_t length;
+} __attribute__((packed));
+
+#define RPC_KERN_WRITE_SIZE 12
 
 extern struct proc *krpcproc;
 
