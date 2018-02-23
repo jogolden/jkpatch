@@ -835,8 +835,7 @@ int rpc_handle_elf(int fd, struct rpc_proc_elf *pelf) {
 			}
 
 			if (!memcmp(entries[i].name, "executable", 10)) {
-				size_t size = entries[i].end = entries[i].start;
-				proc_mprotect(p, (void *)entries[i].start, size, VM_PROT_ALL);
+				proc_mprotect(p, (void *)entries[i].start, (void *)entries[i].end, VM_PROT_ALL);
 				break;
 			}
 		}

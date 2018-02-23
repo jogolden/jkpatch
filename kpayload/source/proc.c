@@ -194,24 +194,23 @@ int proc_deallocate(struct proc *p, void *address, size_t size) {
 	return r;
 }
 
-int proc_mprotect(struct proc *p, void *address, size_t size, int new_prot) {
+int proc_mprotect(struct proc *p, void *address, void *end, int new_prot) {
 	int r = 0;
 
 	uint64_t addr = (uint64_t)address;
+	uint64_t addrend = (uint64_t)end;
+
 	struct vmspace *vm = p->p_vmspace;
 	struct vm_map *map = &vm->vm_map;
 
-	vm_map_lock(map);
-
-	// patch protect
+	// patch vm_map_protect check
 	uint64_t CR0 = __readcr0();
 	__writecr0(CR0 & ~CR0_WP);
 	memcpy((void *)(getkernbase() + 0x4423E9), "\x90\x90\x90\x90\x90\x90", 6);
 	__writecr0(CR0);
 
-	r = vm_map_protect(map, addr, addr + size, new_prot, 0);
-
-	vm_map_unlock(map);
-
+	r = vm_map_protect(map, addr, addrend, new_prot, 1);
+	r = vm_map_protect(map, addr, addrend, new_prot, 0);
+	
 	return r;
 }
