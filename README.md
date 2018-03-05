@@ -36,7 +36,7 @@ See either [Example.cs](librpc/Example.cs) or look at the [RPC documentation](li
 
 You can read/write memory, call functions, read/write kernel memory, and even load elfs.
 
-[Here](https://www.youtube.com/watch?v=ieQPY4feBZo) is a cool example of an elf loaded into COD Ghosts (forge mod made by me!)
+[Here](https://www.youtube.com/watch?v=ieQPY4feBZo) is a cool example of an elf loaded into COD Ghosts (forge mod made by me!) You can download the source code to the forge mod [here](http://www.mediafire.com/file/v2m6513km68vmpd/forge.zip). Have fun!
 
 ### Coming Soon
 - General code clean up and refactoring

@@ -37,39 +37,38 @@ void jailbreak(struct thread *td, uint64_t kernbase) {
 void debug_patches(struct thread *td, uint64_t kernbase) {
 	// sorry... this is very messy!
 	// TODO: label and explain patches
-	*(uint8_t *)(kernbase + 0x186B0A0) = 0;
-	*(uint8_t *)(kernbase + 0x2001516) |= 0x14;
-	*(uint8_t *)(kernbase + 0x2001539) |= 1;
-	*(uint8_t *)(kernbase + 0x2001539) |= 2;
-	*(uint8_t *)(kernbase + 0x200153A) |= 1;
-	*(uint8_t *)(kernbase + 0x2001558) |= 1;
+	*(uint8_t *)(kernbase + 0x1B6D086) |= 0x14;
+	*(uint8_t *)(kernbase + 0x1B6D0A9) |= 0x3;
+	*(uint8_t *)(kernbase + 0x1B6D0AA) |= 0x1;
+	*(uint8_t *)(kernbase + 0x1B6D0C8) |= 0x1;
 
 	// registry patches for extra debug information
 	// fucks with the whole system, patches sceRegMgrGetInt
+	// 405
 	//*(uint32_t *)(kernbase + 0x4CECB7) = 0;
 	//*(uint32_t *)(kernbase + 0x4CFB9B) = 0;
-
-	// target id patches
-	*(uint16_t *)(kernbase + 0x1FE59E4) = 0x8101;
-	*(uint16_t *)(kernbase + 0X1FE5A2C) = 0x8101;
-	*(uint16_t *)(kernbase + 0x200151C) = 0x8101;
+	// 455
+	//*(uint32_t *)(kernbase + 0x4D70F7) = 0;
+	//*(uint32_t *)(kernbase + 0x4D7F81) = 0;
 
 	// flatz RSA check patch
-	*(uint32_t *)(kernbase + 0x68E990) = 0x90C3C031;
+	*(uint32_t *)(kernbase + 0x69F4E0) = 0x90C3C031;
 
 	// flatz enable debug rifs
-	*(uint64_t *)(kernbase + 0x6215B4) = 0x812EEB00000001B8;
+	*(uint64_t *)(kernbase + 0x62D30D) = 0x3D38EB00000001B8;
 
 	// patch vm_fault_hold
 	//memcpy((void *)(kernbase + 0xC6991), "\x90\x90\x90\x90\x90\x90", 6); terrible patch
-	memcpy((void *)(kernbase + 0xC849F), "\xBB\x05\x00\x00\x00\xEB\xD5", 7);
+	// 405
+	//memcpy((void *)(kernbase + 0xC849F), "\xBB\x05\x00\x00\x00\xEB\xD5", 7);
 
 	// disable sysdump_perform_dump_on_fatal_trap
 	// will continue execution and give more information on crash, such as rip
-	*(uint8_t *)(kernbase + 0x71BDF0) = 0xC3;
+	*(uint8_t *)(kernbase + 0x736250) = 0xC3;
 
 	// remove suspicious mount message
-	*(uint8_t *)(kernbase + 0x202C11) = 0xEB;
+	// 405
+	//*(uint8_t *)(kernbase + 0x202C11) = 0xEB;
 }
 
 void scesbl_patches(struct thread *td, uint64_t kernbase) {

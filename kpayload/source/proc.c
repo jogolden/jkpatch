@@ -204,10 +204,13 @@ int proc_mprotect(struct proc *p, void *address, void *end, int new_prot) {
 	struct vm_map *map = &vm->vm_map;
 
 	// patch vm_map_protect check
+	/*
+	405
 	uint64_t CR0 = __readcr0();
 	__writecr0(CR0 & ~CR0_WP);
 	memcpy((void *)(getkernbase() + 0x4423E9), "\x90\x90\x90\x90\x90\x90", 6);
 	__writecr0(CR0);
+	*/
 
 	r = vm_map_protect(map, addr, addrend, new_prot, 1);
 	r = vm_map_protect(map, addr, addrend, new_prot, 0);

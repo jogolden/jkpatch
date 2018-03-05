@@ -28,7 +28,7 @@ void (*pause)(const char *wmesg, int timo);
 int (*kthread_add)(void (*func)(void *), void *arg, struct proc *procp, struct thread **newtdpp, int flags, int pages, const char *fmt, ...);
 void (*kthread_exit)(void);
 void (*kthread_suspend_check)(void);
-void (*kthread_set_affinity)(const char *tdname, uint64_t prio, uint64_t cpuset); // custom name
+void (*kthread_set_affinity)(const char *tdname, uint64_t prio, uint64_t cpuset, uint64_t unknown); // custom name
 int (*kproc_create)(void (*func)(void *), void *arg, struct proc **newpp, int flags, int pages, const char *fmt, ...);
 int (*kproc_kthread_add)(void (*func)(void *), void *arg, struct proc **procptr, struct thread **tdptr, int flags, int pages, char * procname, const char *fmt, ...);
 void (*sched_prio)(struct thread *td, uint16_t prio);

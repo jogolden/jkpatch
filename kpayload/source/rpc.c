@@ -40,9 +40,11 @@ int rpc_proc_load(struct proc *p, uint64_t address) {
 	// has a check to see if child_tid/parent_tid is in kernel memory, and it in so patch it
 	uint64_t kernbase = getkernbase();
 	uint64_t CR0 = __readcr0();
-	uint16_t *suword_lwpid = (uint16_t *)(kernbase + 0x287074);
+	uint16_t *suword_lwpid1 = (uint16_t *)(kernbase + 0x14AB92);
+	uint16_t *suword_lwpid2 = (uint16_t *)(kernbase + 0x14ABA1);
 	__writecr0(CR0 & ~CR0_WP);
-	*suword_lwpid = 0x9090;
+	*suword_lwpid1 = 0x9090;
+	*suword_lwpid2 = 0x9090;
 	__writecr0(CR0);
 
 	// donor thread
@@ -54,23 +56,20 @@ int rpc_proc_load(struct proc *p, uint64_t address) {
 		goto error;
 	}
 
-	// offsets are for 4.05 libraries
+	// offsets are for 4.55 libraries
 	// todo: write patch finder
 
 	// libkernel.sprx
-	// 0x11570 scePthreadCreate
+	// 0x115C0 scePthreadCreate
 	// 0x7CD20 thr_initial
-	// offset 0x6B7B0
 
 	// libkernel_web.sprx
-	// 0x11570 scePthreadCreate
+	// 0x115C0 scePthreadCreate
 	// 0x7CD20 thr_initial
-	// offset 0x6B7B0
 
 	// libkernel_sys.sprx
-	// 0x120A0 scePthreadCreate
+	// 0x120F0 scePthreadCreate
 	// 0x80D20 thr_initial
-	// offset 0x6EC80
 
 	uint64_t _scePthreadAttrInit = 0, _scePthreadAttrSetstacksize = 0, _scePthreadCreate = 0, _thr_initial = 0;
 	for (int i = 0; i < num_entries; i++) {
@@ -80,17 +79,17 @@ int rpc_proc_load(struct proc *p, uint64_t address) {
 
 		if (!memcmp(entries[i].name, "libkernel.sprx", 14) ||
 		        !memcmp(entries[i].name, "libkernel_web.sprx", 18)) {
-			_scePthreadAttrInit = entries[i].start + 0x11130;
-			_scePthreadAttrSetstacksize = entries[i].start + 0x11150;
-			_scePthreadCreate = entries[i].start + 0x11570;
+			_scePthreadAttrInit = entries[i].start + 0x11180;
+			_scePthreadAttrSetstacksize = entries[i].start + 0x111A0;
+			_scePthreadCreate = entries[i].start + 0x115C0;
 			_thr_initial = entries[i].start + 0x7CD20;
 			break;
 		}
 
 		if (!memcmp(entries[i].name, "libkernel_sys.sprx", 18)) {
-			_scePthreadAttrInit = entries[i].start + 0x11C60;
-			_scePthreadAttrSetstacksize = entries[i].start + 0x11C80;
-			_scePthreadCreate = entries[i].start + 0x120A0;
+			_scePthreadAttrInit = entries[i].start + 0x11CB0;
+			_scePthreadAttrSetstacksize = entries[i].start + 0x11CD0;
+			_scePthreadCreate = entries[i].start + 0x120F0;
 			_thr_initial = entries[i].start + 0x80D20;
 			break;
 		}
@@ -1035,7 +1034,7 @@ void rpc_handler(void *vfd) {
 	uint32_t length = 0;
 	int r = 0;
 
-	kthread_set_affinity("rpchandler", 150, 0x400);
+	kthread_set_affinity("rpchandler", 150, 0x400, 0);
 
 	while (1) {
 		kthread_suspend_check();
@@ -1114,7 +1113,7 @@ void rpc_server_thread(void *arg) {
 	int newfd = -1;
 	int r = 0;
 
-	kthread_set_affinity("rpcserver", 175, 0x400);
+	kthread_set_affinity("rpcserver", 175, 0x400, 0);
 
 	fd = net_socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
@@ -1145,7 +1144,7 @@ void rpc_server_thread(void *arg) {
 	if ((r = net_listen(fd, 8))) {
 		goto error;
 	}
-
+	
 	while (1) {
 		kthread_suspend_check();
 

@@ -235,7 +235,7 @@ struct sx {
 	volatile uintptr_t sx_lock;
 };
 
-TYPE_BEGIN(struct vm_map_entry, 0xB8);
+TYPE_BEGIN(struct vm_map_entry, 0xC0);
 TYPE_FIELD(struct vm_map_entry *prev, 0);
 TYPE_FIELD(struct vm_map_entry *next, 8);
 TYPE_FIELD(struct vm_map_entry *left, 0x10);
@@ -244,17 +244,14 @@ TYPE_FIELD(vm_offset_t start, 0x20);
 TYPE_FIELD(vm_offset_t end, 0x28);
 TYPE_FIELD(vm_offset_t offset, 0x50);
 TYPE_FIELD(uint16_t prot, 0x5C);
-TYPE_FIELD(char name[32], 0x88);
+TYPE_FIELD(char name[32], 0x8D);
 TYPE_END();
 
 TYPE_BEGIN(struct vm_map, 0x178);
 TYPE_FIELD(struct vm_map_entry header, 0);
 TYPE_FIELD(struct sx lock, 0xB8);
 TYPE_FIELD(struct mtx system_mtx, 0xD8);
-TYPE_FIELD(int nentries, 0xF8);
-TYPE_FIELD(int timestamp, 0x108);
-TYPE_FIELD(char system_map, 0x10D);
-TYPE_FIELD(struct vm_map_entry *root, 0x110);
+TYPE_FIELD(int nentries, 0x100);
 TYPE_END();
 
 TYPE_BEGIN(struct vmspace, 0x250);
@@ -299,8 +296,7 @@ TYPE_FIELD(struct ucred *p_ucred, 0x40);
 TYPE_FIELD(struct filedesc *p_fd, 0x48);
 TYPE_FIELD(int pid, 0xB0);
 TYPE_FIELD(struct vmspace *p_vmspace, 0x168);
-TYPE_FIELD(char p_comm[32], 0x3F0);
-TYPE_FIELD(int p_numthreads, 0x978);
+TYPE_FIELD(char p_comm[32], 0x444);
 TYPE_END();
 
 

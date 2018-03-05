@@ -197,7 +197,7 @@ int hook_sceSblAuthMgrSmLoadSelfSegment__sceSblServiceMailbox(unsigned long serv
 	uint8_t *frame = (uint8_t *)__builtin_frame_address(1);
 
 	/* finding a pointer to a context's structure */
-	struct self_context *ctx = *(struct self_context **)(frame - 0x110);
+	struct self_context *ctx = *(struct self_context **)(frame - 0x100);
 	int is_unsigned = ctx && is_fake_self(ctx);
 	if (is_unsigned) {
 		*(int *)(response + 0x04) = 0; /* setting error field to zero, thus we have no errors */
@@ -209,7 +209,7 @@ int hook_sceSblAuthMgrSmLoadSelfSegment__sceSblServiceMailbox(unsigned long serv
 
 int hook_sceSblAuthMgrSmLoadSelfBlock__sceSblServiceMailbox(unsigned long service_id, uint8_t *request, void *response) {
 	struct self_context *ctx;
-	register struct self_context *ctx_reg __asm__("r12"); // cool fix?
+	register struct self_context *ctx_reg __asm__("r14"); // cool fix?
 
 	vm_offset_t segment_data_gpu_va = *(unsigned long *)(request + 0x08);
 	vm_offset_t cur_data_gpu_va = *(unsigned long *)(request + 0x50);
@@ -258,21 +258,21 @@ void install_fself_hooks() {
 	uint64_t kernbase = getkernbase();
 
 	// hook_sceSblAuthMgrIsLoadable2
-	write_jmp(kernbase + 0x6116F1, (uint64_t)hook_sceSblAuthMgrIsLoadable2);
-	KCALL_REL32(kernbase, 0x6119B5, 0x6116F1);
+	write_jmp(kernbase + 0x60C610, (uint64_t)hook_sceSblAuthMgrIsLoadable2);
+	KCALL_REL32(kernbase, 0x61F24F, 0x60C610);
 
 	// hook_sceSblAuthMgrVerifyHeader
-	write_jmp(kernbase + 0x612EA1, (uint64_t)hook_sceSblAuthMgrVerifyHeader);
-	KCALL_REL32(kernbase, 0x612149, 0x612EA1);
-	KCALL_REL32(kernbase, 0x612D81, 0x612EA1);
+	write_jmp(kernbase + 0x61A861, (uint64_t)hook_sceSblAuthMgrVerifyHeader);
+	KCALL_REL32(kernbase, 0x61F976, 0x61A861);
+	KCALL_REL32(kernbase, 0x620599, 0x61A861);
 
 	// hook_sceSblAuthMgrSmLoadSelfSegment__sceSblServiceMailbox
-	write_jmp(kernbase + 0x617A32, (uint64_t)hook_sceSblAuthMgrSmLoadSelfSegment__sceSblServiceMailbox);
-	KCALL_REL32(kernbase, 0x616A6D, 0x617A32);
+	write_jmp(kernbase + 0x622540, (uint64_t)hook_sceSblAuthMgrSmLoadSelfSegment__sceSblServiceMailbox);
+	KCALL_REL32(kernbase, 0x6238BA, 0x622540);
 
 	// hook_sceSblAuthMgrSmLoadSelfBlock__sceSblServiceMailbox
-	write_jmp(kernbase + 0x617B80, (uint64_t)hook_sceSblAuthMgrSmLoadSelfBlock__sceSblServiceMailbox);
-	KCALL_REL32(kernbase, 0x6176C4, 0x617B80);
+	write_jmp(kernbase + 0x626791, (uint64_t)hook_sceSblAuthMgrSmLoadSelfBlock__sceSblServiceMailbox);
+	KCALL_REL32(kernbase, 0x6244E1, 0x626791);
 
 	// restore CR0
 	__writecr0(CR0);

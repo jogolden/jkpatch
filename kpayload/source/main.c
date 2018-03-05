@@ -45,8 +45,8 @@ void install_trap_hook() {
 
 	uint64_t kernbase = getkernbase();
 
-	memcpy((void *)(kernbase + 0xECA92), "\x4C\x89\xE7", 3); // mov rdi, r12
-	write_jmp(kernbase + 0xECA95, (uint64_t)hook_trap_fatal);
+	memcpy((void *)(kernbase + 0x3DC078), "\x4C\x89\xE7", 3); // mov rdi, r12
+	write_jmp(kernbase + 0x3DC07B, (uint64_t)hook_trap_fatal);
 
 	// restore CR0
 	__writecr0(CR0);
@@ -55,6 +55,9 @@ void install_trap_hook() {
 int payload_entry(void *arg) {
 	// initialize uart
 	init_uart();
+	
+	// install trap hook
+	install_trap_hook();
 
 	// initialize rpc
 	init_rpc();
@@ -65,9 +68,6 @@ int payload_entry(void *arg) {
 	// fake package containers
 	shellcore_fpkg_patch();
 	install_fpkg_hooks();
-
-	// install trap hook
-	install_trap_hook();
 
 	return 0;
 }

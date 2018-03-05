@@ -7,23 +7,25 @@
 
 int net_errno;
 
-// specific to 4.05, may change in other updates
+// specific to 4.55, may change in other updates
 // the kernel functions copyin and copyout check if the src/dst address is in kernel space
 void net_disable_copy_checks() {
 	uint64_t kernbase = getkernbase();
 	uint64_t CR0 = __readcr0();
 
-	uint16_t *copyin1 = (uint16_t *)(kernbase + 0x286E12);
-	uint16_t *copyin2 = (uint16_t *)(kernbase + 0x286E21);
+	uint16_t *copyin1 = (uint16_t *)(kernbase + 0x14A8D8);
+	uint16_t *copyin2 = (uint16_t *)(kernbase + 0x14A8E7);
 
-	uint16_t *copyout1 = (uint16_t *)(kernbase + 0x286D92);
-	uint16_t *copyout2 = (uint16_t *)(kernbase + 0x286DA1);
+	uint16_t *copyout1 = (uint16_t *)(kernbase + 0x14A7EB);
+	uint16_t *copyout2 = (uint16_t *)(kernbase + 0x14A7F3);
+	uint16_t *copyout3 = (uint16_t *)(kernbase + 0x14A802);
 
 	__writecr0(CR0 & ~CR0_WP);
 	*copyin1 = 0x9090;
 	*copyin2 = 0x9090;
 	*copyout1 = 0x9090;
 	*copyout2 = 0x9090;
+	*copyout3 = 0x9090;
 	__writecr0(CR0);
 }
 
@@ -31,17 +33,19 @@ void net_enable_copy_checks() {
 	uint64_t kernbase = getkernbase();
 	uint64_t CR0 = __readcr0();
 
-	uint16_t *copyin1 = (uint16_t *)(kernbase + 0x286E12);
-	uint16_t *copyin2 = (uint16_t *)(kernbase + 0x286E21);
+	uint16_t *copyin1 = (uint16_t *)(kernbase + 0x14A8D8);
+	uint16_t *copyin2 = (uint16_t *)(kernbase + 0x14A8E7);
 
-	uint16_t *copyout1 = (uint16_t *)(kernbase + 0x286D92);
-	uint16_t *copyout2 = (uint16_t *)(kernbase + 0x286DA1);
+	uint16_t *copyout1 = (uint16_t *)(kernbase + 0x14A7EB);
+	uint16_t *copyout2 = (uint16_t *)(kernbase + 0x14A7F3);
+	uint16_t *copyout3 = (uint16_t *)(kernbase + 0x14A802);
 
 	__writecr0(CR0 & ~CR0_WP);
-	*copyin1 = 0x3C72;
-	*copyin2 = 0x2D77;
-	*copyout1 = 0x3C72;
-	*copyout2 = 0x2D77;
+	*copyin1 = 0x4672;
+	*copyin2 = 0x3777;
+	*copyout1 = 0x6375;
+	*copyout2 = 0x5B72;
+	*copyout3 = 0x4C77;
 	__writecr0(CR0);
 }
 
@@ -54,7 +58,7 @@ int net_socket(int domain, int type, int protocol) {
 
 	uint64_t kernbase = getkernbase();
 
-	int (*sys_socket)(struct thread * td, struct sys_socket_args * uap) = (void *)(kernbase + 0x121340);
+	int (*sys_socket)(struct thread * td, struct sys_socket_args * uap) = (void *)(kernbase + 0x3EAC20);
 
 	struct thread *td = curthread();
 
@@ -77,7 +81,7 @@ int net_bind(int sockfd, struct sockaddr *addr, int addrlen) {
 
 	uint64_t kernbase = getkernbase();
 
-	int (*sys_bind)(struct thread * td, struct sys_bind_args * uap) = (void *)(kernbase + 0x121C80);
+	int (*sys_bind)(struct thread * td, struct sys_bind_args * uap) = (void *)(kernbase + 0x3EB550);
 
 	struct thread *td = curthread();
 
@@ -99,7 +103,7 @@ int net_listen(int sockfd, int backlog) {
 
 	uint64_t kernbase = getkernbase();
 
-	int (*sys_listen)(struct thread * td, struct sys_listen_args * uap) = (void *)(kernbase + 0x121E90);
+	int (*sys_listen)(struct thread * td, struct sys_listen_args * uap) = (void *)(kernbase + 0x3EB760);
 
 	struct thread *td = curthread();
 
@@ -121,7 +125,7 @@ int net_accept(int sockfd, struct sockaddr *addr, int *addrlen) {
 
 	uint64_t kernbase = getkernbase();
 
-	int (*sys_accept)(struct thread * td, struct sys_accept_args * uap) = (void *)(kernbase + 0x122620);
+	int (*sys_accept)(struct thread * td, struct sys_accept_args * uap) = (void *)(kernbase + 0x3EBEC0);
 
 	struct thread *td = curthread();
 
@@ -144,7 +148,7 @@ int net_recv(int fd, void *buf, uint64_t len) {
 
 	uint64_t kernbase = getkernbase();
 
-	int (*sys_read)(struct thread * td, struct sys_read_args * uap) = (void *)(kernbase + 0x166820);
+	int (*sys_read)(struct thread * td, struct sys_read_args * uap) = (void *)(kernbase + 0x5EC50);
 
 	struct thread *td = curthread();
 
@@ -167,7 +171,7 @@ int net_send(int fd, const void *buf, uint64_t len) {
 
 	uint64_t kernbase = getkernbase();
 
-	int (*sys_write)(struct thread * td, struct sys_write_args * uap) = (void *)(kernbase + 0x166D70);
+	int (*sys_write)(struct thread * td, struct sys_write_args * uap) = (void *)(kernbase + 0x5F1A0);
 
 	struct thread *td = curthread();
 
@@ -192,7 +196,7 @@ int net_setsockopt(int s, int level, int optname, const void *optval, uint32_t o
 
 	uint64_t kernbase = getkernbase();
 
-	int (*sys_setsockopt)(struct thread * td, struct sys_setsockopt_args * uap) = (void *)(kernbase + 0x123A90);
+	int (*sys_setsockopt)(struct thread * td, struct sys_setsockopt_args * uap) = (void *)(kernbase + 0x3ED300);
 
 	struct thread *td = curthread();
 
@@ -215,7 +219,7 @@ int net_close(int fd) {
 
 	uint64_t kernbase = getkernbase();
 
-	int (*sys_close)(struct thread * td, struct sys_close_args * uap) = (void *)(kernbase + 0x45C430);
+	int (*sys_close)(struct thread * td, struct sys_close_args * uap) = (void *)(kernbase + 0x42AC00);
 
 	struct thread *td = curthread();
 

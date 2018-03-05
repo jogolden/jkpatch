@@ -14,11 +14,4 @@ void resolve(uint64_t kernbase) {
 	r(k_memset, __memset);
 	r(k_memcmp, __memcmp);
 	r(k_strlen, __strlen);
-	r(kthread_add, __kthread_add);
-	r(proc_rwmem, __proc_rwmem);
-	r(sx_init_flags, __sx_init_flags);
-	r(sx_xlock, __sx_xlock);
-	r(sx_xunlock, __sx_xunlock);
-	r(fpu_kern_enter, __fpu_kern_enter);
-	r(fpu_kern_leave, __fpu_kern_leave);
 }

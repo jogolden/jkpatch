@@ -1,8 +1,8 @@
 /* golden */
 /* 1/2/2018 */
 
-#ifndef _FUCKDRM_H
-#define _FUCKDRM_H
+#ifndef _JKPATCH_H
+#define _JKPATCH_H
 
 // stolen from windows, I prefer this for some reason
 #define FALSE 0

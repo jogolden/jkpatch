@@ -331,12 +331,12 @@ int shellcore_fpkg_patch() {
 
 	// all offsets below are belongs to functions that parses .pkg files
 	uint32_t call_ofs_for__xor__eax_eax__3nop[] = {
-		0x11A0DB, // call sceKernelIsGenuineCEX
-		0x66EA3B, // call sceKernelIsGenuineCEX
-		0x7F554B, // call sceKernelIsGenuineCEX
-		0x11A107, // call nidf_libSceDipsw_0xD21CE9E2F639A83C
-		0x66EA67, // call nidf_libSceDipsw_0xD21CE9E2F639A83C
-		0x7F5577, // call nidf_libSceDipsw_0xD21CE9E2F639A83C
+		0x1486BB, // call sceKernelIsGenuineCEX
+		0x6E523B, // call sceKernelIsGenuineCEX
+		0x852C6B, // call sceKernelIsGenuineCEX
+		0x1486E7, // call nidf_libSceDipsw_0xD21CE9E2F639A83C
+		0x6E5267, // call nidf_libSceDipsw_0xD21CE9E2F639A83C
+		0x852C97, // call nidf_libSceDipsw_0xD21CE9E2F639A83C
 	};
 
 	struct proc *ssc = proc_find_by_name("SceShellCore");
@@ -372,7 +372,7 @@ int shellcore_fpkg_patch() {
 	}
 
 	// this offset corresponds to "fake\0" string in the Shellcore's memory
-	ret = proc_write_mem(ssc, (void *)(text_seg_base + 0xC980EE), 5, "free\0", &n);
+	ret = proc_write_mem(ssc, (void *)(text_seg_base + 0xD40F28), 5, "free\0", &n);
 	if (ret) {
 		goto error;
 	}
@@ -395,28 +395,28 @@ void install_fpkg_hooks() {
 	sx_init_flags(&s_fake_keys_lock, "fake_keys_lock", 0);
 	memset(s_fake_keys, 0, sizeof(s_fake_keys));
 
-	write_jmp(kernbase + 0x61FF61, (uint64_t)hook_npdrm_decrypt_isolated_rif__sceSblKeymgrSmCallfunc);
-	KCALL_REL32(kernbase, 0x61FDB0, 0x61FF61);
+	write_jmp(kernbase + 0x62CF10, (uint64_t)hook_npdrm_decrypt_isolated_rif__sceSblKeymgrSmCallfunc);
+	KCALL_REL32(kernbase, 0x62DF00, 0x62CF10);
 
-	write_jmp(kernbase + 0x6A4EB0, (uint64_t)hook_npdrm_decrypt_new_rif__sceSblKeymgrSmCallfunc);
-	KCALL_REL32(kernbase, 0x6202FF, 0x6A4EB0);
+	write_jmp(kernbase + 0x64D731, (uint64_t)hook_npdrm_decrypt_new_rif__sceSblKeymgrSmCallfunc);
+	KCALL_REL32(kernbase, 0x62ECDE, 0x64D731);
 
-	write_jmp(kernbase + 0x601051, (uint64_t)hook_sceSblPfsKeymgrIoctl__sceSblPfsKeymgrGenEKpfsForGDGPAC);
-	KCALL_REL32(kernbase, 0x600885, 0x601051);
-	KCALL_REL32(kernbase, 0x600921, 0x601051);
+	write_jmp(kernbase + 0x64D381, (uint64_t)hook_sceSblPfsKeymgrIoctl__sceSblPfsKeymgrGenEKpfsForGDGPAC);
+	KCALL_REL32(kernbase, 0x607045, 0x64D381);
+	KCALL_REL32(kernbase, 0x6070E1, 0x64D381);
 
-	write_jmp(kernbase + 0x68DE61, (uint64_t)hook_pfs_sbl_init__sceSblPfsSetKey);
-	KCALL_REL32(kernbase, 0x68D078, 0x68DE61);
-	KCALL_REL32(kernbase, 0x68CFEA, 0x68DE61);
+	write_jmp(kernbase + 0x6953A1, (uint64_t)hook_pfs_sbl_init__sceSblPfsSetKey);
+	KCALL_REL32(kernbase, 0x69DB4A, 0x6953A1);
+	KCALL_REL32(kernbase, 0x69DBD8, 0x6953A1);
 
-	write_jmp(kernbase + 0x68E921, (uint64_t)hook_pfs_crypto__sceSblServiceCryptAsync);
-	KCALL_REL32(kernbase, 0x68D284, 0x68E921);
-	KCALL_REL32(kernbase, 0x68D71C, 0x68E921);
-	KCALL_REL32(kernbase, 0x68D974, 0x68E921);
-	KCALL_REL32(kernbase, 0x68DCED, 0x68E921);
-	KCALL_REL32(kernbase, 0x68E11E, 0x68E921);
-	KCALL_REL32(kernbase, 0x68E3B9, 0x68E921);
-	KCALL_REL32(kernbase, 0x68E702, 0x68E921);
+	write_jmp(kernbase + 0x6AD171, (uint64_t)hook_pfs_crypto__sceSblServiceCryptAsync);
+	KCALL_REL32(kernbase, 0x69DDE4, 0x6AD171);
+	KCALL_REL32(kernbase, 0x69E28C, 0x6AD171);
+	KCALL_REL32(kernbase, 0x69E4E8, 0x6AD171);
+	KCALL_REL32(kernbase, 0x69E85D, 0x6AD171);
+	KCALL_REL32(kernbase, 0x69EC7E, 0x6AD171);
+	KCALL_REL32(kernbase, 0x69EF0D, 0x6AD171);
+	KCALL_REL32(kernbase, 0x69F252, 0x6AD171);
 
 	// restore CR0
 	__writecr0(CR0);
