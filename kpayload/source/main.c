@@ -12,10 +12,10 @@ void hook_trap_fatal(struct trapframe *tf) {
 	const char regnames[15][8] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9", "rax", "rbx", "rbp", "r10", "r11", "r12", "r13", "r14", "r15" };
 	for(int i = 0; i < 15; i++) {
 		uint64_t rv = *(uint64_t *)((uint64_t)tf + (sizeof(uint64_t) * i));
-		uprintf("\t%s %llX %i", regnames[i], rv, rv);
+		uprintf("    %s %llX %i", regnames[i], rv, rv);
 	}
-	uprintf("\trip %llX %i", tf->tf_rip, tf->tf_rip);
-	uprintf("\trsp %llX %i", tf->tf_rsp, tf->tf_rsp);
+	uprintf("    rip %llX %i", tf->tf_rip, tf->tf_rip);
+	uprintf("    rsp %llX %i", tf->tf_rsp, tf->tf_rsp);
 
 	uint64_t sp = 0;
 	if ((tf->tf_rsp & 3) == 3) {
@@ -26,12 +26,13 @@ void hook_trap_fatal(struct trapframe *tf) {
 
 	// stack backtrace
 	uint64_t kernbase = getkernbase();
+	uprintf("kernelbase: 0x%llX", kernbase);
 	uint64_t backlog = 128;
 	uprintf("stack backtrace (0x%llX):", sp);
 	for (int i = 0; i < backlog; i++) {
 		uint64_t sv = *(uint64_t *)((sp - (backlog * sizeof(uint64_t))) + (i * sizeof(uint64_t)));
 		if (sv > kernbase) {
-			uprintf("\t%i <kernbase>+0x%llX", i, sv - kernbase);
+			uprintf("    %i <kernbase>+0x%llX", i, sv - kernbase);
 		}
 	}
 

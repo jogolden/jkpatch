@@ -20,7 +20,7 @@ TARGET = kpayload.elf
 
 $(TARGET): $(ODIR) $(OBJS)
 	$(CC) crt0.s $(ODIR)/*.o -o $(TARGET) $(CFLAGS) $(LFLAGS) $(LIBS)
-	#strip $(TARGET)
+	strip $(TARGET)
 
 $(ODIR)/%.o: $(SDIR)/%.c
 	$(CC) -c -o $@ $< $(CFLAGS)

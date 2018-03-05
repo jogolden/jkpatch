@@ -57,18 +57,15 @@ void debug_patches(struct thread *td, uint64_t kernbase) {
 	// flatz enable debug rifs
 	*(uint64_t *)(kernbase + 0x62D30D) = 0x3D38EB00000001B8;
 
-	// patch vm_fault_hold
-	//memcpy((void *)(kernbase + 0xC6991), "\x90\x90\x90\x90\x90\x90", 6); terrible patch
-	// 405
-	//memcpy((void *)(kernbase + 0xC849F), "\xBB\x05\x00\x00\x00\xEB\xD5", 7);
-
 	// disable sysdump_perform_dump_on_fatal_trap
 	// will continue execution and give more information on crash, such as rip
 	*(uint8_t *)(kernbase + 0x736250) = 0xC3;
 
-	// remove suspicious mount message
-	// 405
-	//*(uint8_t *)(kernbase + 0x202C11) = 0xEB;
+	// patch vm_map_protect check
+	memcpy((void *)(kernbase + 0x396A58), "\x90\x90\x90\x90\x90\x90", 6);
+
+	// patch ASLR, thanks 2much4u
+	*(uint16_t *)(kernbase + 0x1BA559) = 0x9090;
 }
 
 void scesbl_patches(struct thread *td, uint64_t kernbase) {

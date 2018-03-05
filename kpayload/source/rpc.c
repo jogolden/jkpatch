@@ -95,7 +95,7 @@ int rpc_proc_load(struct proc *p, uint64_t address) {
 		}
 	}
 
-	if (!_scePthreadCreate || !_thr_initial) {
+	if (!_scePthreadAttrInit) {
 		goto error;
 	}
 

@@ -16,12 +16,12 @@
 I use the standard fake pkg keys, created by flatz.
 
 ### General Notes
-**Only for 4.05 Jailbroken PlayStation 4 consoles!**
+**Only for 4.55 Jailbroken PlayStation 4 consoles!**
 
-The main jkpatch payload utilizes idc's port of CTurt's payload sdk. You can download it [here](https://github.com/idc/ps4-payload-sdk). Change the [Makefile](payload/Makefile) to have `LIBPS4` point to the ps4-payload-sdk directory on your machine. I could have it referenced from the home directory but meh...
+The main jkpatch payload utilizes a port of CTurt's payload sdk. Change the [Makefile](payload/Makefile) to have `LIBPS4` point to the ps4-payload-sdk directory on your machine. I could have it referenced from the home directory but meh...
 ```makefile
 # change this to point to your ps4-payload-sdk directory
-LIBPS4	:=	/home/John/PS4-PAYLOAD-SDK/libPS4
+LIBPS4	:=	/home/John/ps4-payload-sdk/libPS4
 ```
 
 If you decide to edit the `resolve` code in the kernel payload, make sure you do not mess with...
@@ -29,6 +29,8 @@ If you decide to edit the `resolve` code in the kernel payload, make sure you do
 void resolve(uint64_t kernbase);
 ```
 ... as it is called from `crt0.s`. And changing this will produce errors.
+
+See other branches for other kernel support. I will support latest publically exploited firmware on main branch.
 
 ### RPC Quickstart
 
@@ -41,7 +43,7 @@ You can read/write memory, call functions, read/write kernel memory, and even lo
 ### Coming Soon
 - General code clean up and refactoring
 
-Thank you to flatz, idc, zecoxao, hitodama, osdev.org!
+Thank you to flatz, idc, zecoxao, hitodama, osdev.org, and anyone else I forgot!
 
 Twitter: [@cloverleafswag3](https://twitter.com/cloverleafswag3) psxhax: [g991](https://www.psxhax.com/members/g991.473299/)
 
