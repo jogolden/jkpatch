@@ -89,9 +89,9 @@ namespace Example
 
             ProcessList pl = ps4.GetProcessList();
 
-            foreach(Process p in pl.processes)
+            foreach(Process process in pl.processes)
             {
-                Console.WriteLine(p.name);
+                Console.WriteLine(process.name);
             }
 
             Process p = pl.FindProcess("SceShellCore");
@@ -114,8 +114,8 @@ namespace Example
 
             ulong stub = ps4.InstallRPC(p.pid);
             
-            ProcessInfo pi = ps4.GetProcessInfo(p.pid);
-            MemoryEntry vme = pi.FindEntry("libSceLibcInternal.sprx", true);
+            //ProcessInfo pi = ps4.GetProcessInfo(p.pid);
+            MemoryEntry vme = pi.FindEntry("libSceLibcInternal.sprx");
 
             // dissasemble libSceLibcInternal.sprx to get these offsets (4.05)
             int sys_getpid = (int)ps4.Call(p.pid, stub, vme.start + 0xE0);
