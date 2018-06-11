@@ -60,7 +60,7 @@ void debug_patches(struct thread *td, uint64_t kernbase) {
 
 	// disable sysdump_perform_dump_on_fatal_trap
 	// will continue execution and give more information on crash, such as rip
-	*(uint8_t *)(kernbase + 0x736250) = 0xC3;
+	*(uint8_t *)(kernbase + 0x7673E0) = 0xC3;
 
 	// patch vm_map_protect check
 	memcpy((void *)(kernbase + 0x1A3C08), "\x90\x90\x90\x90\x90\x90", 6);
