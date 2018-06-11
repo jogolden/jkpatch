@@ -296,7 +296,7 @@ TYPE_FIELD(struct ucred *p_ucred, 0x40);
 TYPE_FIELD(struct filedesc *p_fd, 0x48);
 TYPE_FIELD(int pid, 0xB0);
 TYPE_FIELD(struct vmspace *p_vmspace, 0x168);
-TYPE_FIELD(char p_comm[32], 0x444);
+TYPE_FIELD(char p_comm[32], 0x44C);
 TYPE_END();
 
 

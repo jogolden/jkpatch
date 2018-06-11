@@ -40,8 +40,8 @@ int rpc_proc_load(struct proc *p, uint64_t address) {
 	// has a check to see if child_tid/parent_tid is in kernel memory, and it in so patch it
 	uint64_t kernbase = getkernbase();
 	uint64_t CR0 = __readcr0();
-	uint16_t *suword_lwpid1 = (uint16_t *)(kernbase + 0x14AB92);
-	uint16_t *suword_lwpid2 = (uint16_t *)(kernbase + 0x14ABA1);
+	uint16_t *suword_lwpid1 = (uint16_t *)(kernbase + 0x1EA9D2);
+	uint16_t *suword_lwpid2 = (uint16_t *)(kernbase + 0x1EA9E1);
 	__writecr0(CR0 & ~CR0_WP);
 	*suword_lwpid1 = 0x9090;
 	*suword_lwpid2 = 0x9090;
@@ -56,20 +56,20 @@ int rpc_proc_load(struct proc *p, uint64_t address) {
 		goto error;
 	}
 
-	// offsets are for 4.55 libraries
+	// offsets are for 5.05 libraries
 	// todo: write patch finder
 
 	// libkernel.sprx
-	// 0x115C0 scePthreadCreate
-	// 0x7CD20 thr_initial
+	// 0x12AA0 scePthreadCreate
+	// 0x84C20 thr_initial
 
 	// libkernel_web.sprx
-	// 0x115C0 scePthreadCreate
-	// 0x7CD20 thr_initial
+	// 0x98C0 scePthreadCreate
+	// 0x84C20 thr_initial
 
 	// libkernel_sys.sprx
-	// 0x120F0 scePthreadCreate
-	// 0x80D20 thr_initial
+	// 0x135D0 scePthreadCreate
+	// 0x89030 thr_initial
 
 	uint64_t _scePthreadAttrInit = 0, _scePthreadAttrSetstacksize = 0, _scePthreadCreate = 0, _thr_initial = 0;
 	for (int i = 0; i < num_entries; i++) {
@@ -77,20 +77,26 @@ int rpc_proc_load(struct proc *p, uint64_t address) {
 			continue;
 		}
 
-		if (!memcmp(entries[i].name, "libkernel.sprx", 14) ||
-		        !memcmp(entries[i].name, "libkernel_web.sprx", 18)) {
-			_scePthreadAttrInit = entries[i].start + 0x11180;
-			_scePthreadAttrSetstacksize = entries[i].start + 0x111A0;
-			_scePthreadCreate = entries[i].start + 0x115C0;
-			_thr_initial = entries[i].start + 0x7CD20;
+		if (!memcmp(entries[i].name, "libkernel.sprx", 14)) {
+			_scePthreadAttrInit = entries[i].start + 0x12660;
+			_scePthreadAttrSetstacksize = entries[i].start + 0x12680;
+			_scePthreadCreate = entries[i].start + 0x12AA0;
+			_thr_initial = entries[i].start + 0x84C20;
 			break;
 		}
-
+		if (!memcmp(entries[i].name, "libkernel_web.sprx", 18))
+		{
+			_scePthreadAttrInit = entries[i].start + 0x1E730;
+			_scePthreadAttrSetstacksize = entries[i].start + 0xFA80;
+			_scePthreadCreate = entries[i].start + 0x98C0;
+			_thr_initial = entries[i].start + 0x84C20;
+			break;
+		}
 		if (!memcmp(entries[i].name, "libkernel_sys.sprx", 18)) {
-			_scePthreadAttrInit = entries[i].start + 0x11CB0;
-			_scePthreadAttrSetstacksize = entries[i].start + 0x11CD0;
-			_scePthreadCreate = entries[i].start + 0x120F0;
-			_thr_initial = entries[i].start + 0x80D20;
+			_scePthreadAttrInit = entries[i].start + 0x13190;
+			_scePthreadAttrSetstacksize = entries[i].start + 0x131B0;
+			_scePthreadCreate = entries[i].start + 0x135D0;
+			_thr_initial = entries[i].start + 0x89030;
 			break;
 		}
 	}
@@ -991,7 +997,7 @@ int rpc_cmd_handler(int fd, struct rpc_packet *packet) {
 		break;
 	}
 	case RPC_PROC_ELF: {
-		rpc_handle_elf(fd, (struct rpc_proc_elf *)packet->data);
+		//rpc_handle_elf(fd, (struct rpc_proc_elf *)packet->data);
 		break;
 	}
 	case RPC_END: {

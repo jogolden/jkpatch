@@ -37,10 +37,10 @@ void jailbreak(struct thread *td, uint64_t kernbase) {
 void debug_patches(struct thread *td, uint64_t kernbase) {
 	// sorry... this is very messy!
 	// TODO: label and explain patches
-	*(uint8_t *)(kernbase + 0x1B6D086) |= 0x14;
-	*(uint8_t *)(kernbase + 0x1B6D0A9) |= 0x3;
-	*(uint8_t *)(kernbase + 0x1B6D0AA) |= 0x1;
-	*(uint8_t *)(kernbase + 0x1B6D0C8) |= 0x1;
+	*(uint8_t *)(kernbase + 0x1CD0686) |= 0x14;
+	*(uint8_t *)(kernbase + 0x1CD06A9) |= 0x3;
+	*(uint8_t *)(kernbase + 0x1CD06AA) |= 0x1;
+	*(uint8_t *)(kernbase + 0x1CD06C8) |= 0x1;
 
 	// registry patches for extra debug information
 	// fucks with the whole system, patches sceRegMgrGetInt
@@ -52,20 +52,21 @@ void debug_patches(struct thread *td, uint64_t kernbase) {
 	//*(uint32_t *)(kernbase + 0x4D7F81) = 0;
 
 	// flatz RSA check patch
-	*(uint32_t *)(kernbase + 0x69F4E0) = 0x90C3C031;
+	*(uint32_t *)(kernbase + 0x6A2700) = 0x90C3C031;
 
 	// flatz enable debug rifs
-	*(uint64_t *)(kernbase + 0x62D30D) = 0x3D38EB00000001B8;
+	*(uint32_t *)(kernbase + 0x64B2B0) = 0x90C301B0;
+	*(uint32_t *)(kernbase + 0x64B2D0) = 0x90C301B0;
 
 	// disable sysdump_perform_dump_on_fatal_trap
 	// will continue execution and give more information on crash, such as rip
 	*(uint8_t *)(kernbase + 0x736250) = 0xC3;
 
 	// patch vm_map_protect check
-	memcpy((void *)(kernbase + 0x396A58), "\x90\x90\x90\x90\x90\x90", 6);
+	memcpy((void *)(kernbase + 0x1A3C08), "\x90\x90\x90\x90\x90\x90", 6);
 
 	// patch ASLR, thanks 2much4u
-	*(uint16_t *)(kernbase + 0x1BA559) = 0x9090;
+	*(uint16_t *)(kernbase + 0x194875) = 0x9090;
 }
 
 void scesbl_patches(struct thread *td, uint64_t kernbase) {
@@ -90,7 +91,7 @@ void scesbl_patches(struct thread *td, uint64_t kernbase) {
 	*(uint64_t *)(td_ucred + 0x68) = 0xFFFFFFFFFFFFFFFF;
 
 	// sceSblACMgrIsAllowedSystemLevelDebugging
-	*(uint8_t *)(kernbase + 0x36057B) = 0;
+	//*(uint8_t *)(kernbase + 0x36057B) = 0;
 }
 
 int receive_payload(void **payload, size_t *psize) {
