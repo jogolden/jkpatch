@@ -181,7 +181,7 @@ int jkpatch(struct thread *td, struct jkuap *uap) {
 	// print some stuff
 	ascii_art(printf);
 	printf("jkpatch installer loaded\n");
-	printf("[jkpatch] kernbase 0x%llX\n", kernbase);
+	printf("[jkpatch] kernel base 0x%llX\n", kernbase);
 
 	printf("[jkpatch] loading payload...\n");
 

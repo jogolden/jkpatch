@@ -16,7 +16,7 @@
 I use the standard fake pkg keys, created by flatz.
 
 ### General Notes
-**Only for 4.55 Jailbroken PlayStation 4 consoles!**
+**Only for 5.05 Jailbroken PlayStation 4 consoles!**
 
 The main jkpatch payload utilizes a port of CTurt's payload sdk. Change the [Makefile](payload/Makefile) to have `LIBPS4` point to the ps4-payload-sdk directory on your machine. I could have it referenced from the home directory but meh...
 ```makefile
@@ -40,8 +40,7 @@ You can read/write memory, call functions, read/write kernel memory, and even lo
 
 [Here](https://www.youtube.com/watch?v=ieQPY4feBZo) is a cool example of an elf loaded into COD Ghosts (forge mod made by me!) You can download the source code to the forge mod [here](http://www.mediafire.com/file/v2m6513km68vmpd/forge.zip). Have fun!
 
-### Coming Soon
-- General code clean up and refactoring
+---
 
 Thank you to flatz, idc, zecoxao, hitodama, osdev.org, and anyone else I forgot!
 
