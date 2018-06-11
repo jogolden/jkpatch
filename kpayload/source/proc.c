@@ -40,33 +40,27 @@ struct proc *proc_find_by_pid(int pid) {
 int proc_get_vm_map(struct proc *p, struct proc_vm_map_entry **entries, size_t *num_entries) {
 	struct proc_vm_map_entry *info = NULL;
 	struct vm_map_entry *entry = NULL;
+	int r = 0;
 
-	struct vmspace *vm = vmspace_acquire_ref(p);
-	if (!vm) {
-		return 1;
-	}
-
+	struct vmspace *vm = p->p_vmspace;
 	struct vm_map *map = &vm->vm_map;
-
-	int num = map->nentries;
-	if (!num) {
-		vmspace_free(vm);
-		return 0;
-	}
 
 	vm_map_lock_read(map);
 
-	if (vm_map_lookup_entry(map, NULL, &entry)) {
-		vm_map_unlock_read(map);
-		vmspace_free(vm);
-		return 1;
+	int num = map->nentries;
+	if (!num) {
+		goto error;
+	}
+
+	r = vm_map_lookup_entry(map, NULL, &entry);
+	if(r) {
+		goto error;
 	}
 
 	info = (struct proc_vm_map_entry *)alloc(num * sizeof(struct proc_vm_map_entry));
 	if (!info) {
-		vm_map_unlock_read(map);
-		vmspace_free(vm);
-		return 1;
+		r = 1;
+		goto error;
 	}
 
 	for (int i = 0; i < num; i++) {
@@ -81,8 +75,8 @@ int proc_get_vm_map(struct proc *p, struct proc_vm_map_entry **entries, size_t *
 		}
 	}
 
+error:
 	vm_map_unlock_read(map);
-	vmspace_free(vm);
 
 	if (entries) {
 		*entries = info;
@@ -203,7 +197,12 @@ int proc_mprotect(struct proc *p, void *address, void *end, int new_prot) {
 	struct vmspace *vm = p->p_vmspace;
 	struct vm_map *map = &vm->vm_map;
 
+	// update the max prot then set new prot
 	r = vm_map_protect(map, addr, addrend, new_prot, 1);
+	if (r) {
+		return r;
+	}
+
 	r = vm_map_protect(map, addr, addrend, new_prot, 0);
 	
 	return r;

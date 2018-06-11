@@ -215,9 +215,10 @@ int _main(void) {
 
 	syscall(11, jkpatch, payload, psize);
 
-	if (payload) {
+	// this could race
+	/*if (payload) {
 		free(payload);
-	}
+	}*/
 
 	return 0;
 }

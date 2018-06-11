@@ -15,7 +15,7 @@ int rpc_proc_load(struct proc *p, uint64_t address) {
 
 	uint64_t ldrsize = sizeof(rpcldr);
 	ldrsize += (PAGE_SIZE - (ldrsize % PAGE_SIZE));
-
+	
 	uint64_t stacksize = 0x80000;
 
 	// allocate rpc ldr
@@ -241,14 +241,8 @@ int proc_map_elf(struct proc *p, void *elf, void *exec) {
 			struct Elf64_Phdr *phdr = elf_segment(ehdr, i);
 
 			if (phdr->p_filesz) {
-				//memcpy((uint8_t *)exec + phdr->p_paddr, (uint8_t *)elf + phdr->p_offset, phdr->p_filesz);
-
 				proc_write_mem(p, (void *)((uint8_t *)exec + phdr->p_paddr), phdr->p_filesz, (void *)((uint8_t *)elf + phdr->p_offset), NULL);
 			}
-
-			/*if (phdr->p_memsz - phdr->p_filesz) {
-				memset((uint8_t *)exec + phdr->p_paddr + phdr->p_filesz, NULL, phdr->p_memsz - phdr->p_filesz);
-			}*/
 		}
 	} else {
 		// use sections
@@ -260,8 +254,6 @@ int proc_map_elf(struct proc *p, void *elf, void *exec) {
 			}
 
 			if (shdr->sh_size) {
-				//memcpy((uint8_t *)exec + shdr->sh_addr, (uint8_t *)elf + shdr->sh_offset, shdr->sh_size);
-
 				proc_write_mem(p, (void *)((uint8_t *)exec + shdr->sh_addr), shdr->sh_size, (void *)((uint8_t *)elf + shdr->sh_offset), NULL);
 			}
 		}
@@ -1141,7 +1133,7 @@ void rpc_server_thread(void *arg) {
 		goto error;
 	}
 
-	if ((r = net_listen(fd, 8))) {
+	if ((r = net_listen(fd, 16))) {
 		goto error;
 	}
 	
@@ -1168,7 +1160,7 @@ void rpc_server_thread(void *arg) {
 			kproc_kthread_add(rpc_handler, (void *)((uint64_t)newfd), &krpcproc, NULL, NULL, 0, "rpcproc", "rpchandler");
 		}
 
-		pause("rpcserver", 80);
+		pause("rpcserver", 120);
 	}
 
 error:
