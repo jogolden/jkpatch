@@ -6,10 +6,6 @@
 - Sandbox escape
 - Debug settings
 - Enable UART
-- Disable system update messages
-- Delete system updates
-- Fake self support
-- Fake pkg support
 - RPC server
 - RPC client in C#
 

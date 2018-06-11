@@ -206,10 +206,6 @@ int _main(void) {
 	initLibc();
 	initNetwork();
 
-	// fuck up the updates
-	unlink("/update/PS4UPDATE.PUP");
-	mkdir("/update/PS4UPDATE.PUP", 777);
-
 	size_t psize = 0;
 	void *payload = NULL;
 	receive_payload(&payload, &psize);
