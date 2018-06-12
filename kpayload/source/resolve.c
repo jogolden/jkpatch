@@ -5,10 +5,6 @@
 
 void resolve(uint64_t kernbase) {
 	M_TEMP = (void *)(kernbase + __M_TEMP);
-	fpu_kern_ctx = (void *)(kernbase + __fpu_kern_ctx);
-	sbl_driver_mapped_pages = (const struct sbl_map_list_entry **)(kernbase + __sbl_driver_mapped_pages);
-	mini_syscore_self_binary = (const uint8_t *)(kernbase + __mini_syscore_self_binary);
-	sbl_keymgr_key_rbtree = (struct sbl_key_rbtree_entry **)(kernbase + __sbl_keymgr_key_rbtree);
 
 #define r(name, offset) name = (void *)(kernbase + offset)
 	r(printf, __printf);
@@ -53,23 +49,6 @@ void resolve(uint64_t kernbase) {
 	r(vm_map_protect, __vm_map_protect);
 	r(vmspace_free, __vmspace_free);
 	r(vmspace_acquire_ref, __vmspace_acquire_ref);
-	r(sceSblServiceMailbox, __sceSblServiceMailbox);
-	r(sceSblAuthMgrGetSelfInfo, __sceSblAuthMgrGetSelfInfo);
-	r(sceSblAuthMgrSmStart, __sceSblAuthMgrSmStart);
-	r(sceSblAuthMgrIsLoadable2, __sceSblAuthMgrIsLoadable2);
-	r(sceSblAuthMgrVerifyHeader, __sceSblAuthMgrVerifyHeader);
-	r(sceSblKeymgrSmCallfunc, __sceSblKeymgrSmCallfunc);
-	r(sceSblPfsKeymgrGenEKpfsForGDGPAC, __sceSblPfsKeymgrGenEKpfsForGDGPAC);
-	r(sceSblPfsSetKey, __sceSblPfsSetKey);
-	r(sceSblPfsClearKey, __sceSblPfsClearKey);
-	r(sceSblServiceCrypt, __sceSblServiceCrypt);
-	r(sceSblServiceCryptAsync, __sceSblServiceCryptAsync);
-	r(AesCbcCfb128Encrypt, __AesCbcCfb128Encrypt);
-	r(AesCbcCfb128Decrypt, __AesCbcCfb128Decrypt);
-	r(Sha256Hash, __Sha256Hash);
-	r(Sha256Hmac, __Sha256Hmac);
-	r(RsaesPkcs1v15Enc2048, __RsaesPkcs1v15Enc2048);
-	r(RsaesPkcs1v15Dec2048CRT, __RsaesPkcs1v15Dec2048CRT);
 	r(fill_regs, __fill_regs);
 	r(set_regs, __set_regs);
 }

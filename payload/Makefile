@@ -1,5 +1,5 @@
 # maybe want to change to PS4SDK, I just use this to distinguish between SDKs
-LIBPS4	:=	/home/John/ps4-payload-sdk/libPS4
+LIBPS4	:=	$(PS4SDK)/libPS4
 
 TEXT	:=	0x926200000
 DATA	:=	0x926300000
