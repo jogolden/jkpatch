@@ -12,6 +12,7 @@ $(TARGET):
 $(KTARGET):
 	cd kpayload && $(MAKE) -s
 	cp kpayload/$(KTARGET) $(KTARGET)
+	elfedit --output-type=DYN $(KTARGET)
 	
 .PHONY: clean
 clean:
