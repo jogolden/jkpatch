@@ -973,14 +973,14 @@ int rpc_handle_protect(int fd, struct rpc_proc_protect *pprotect) {
 		addr = (void *)pprotect->address;
 		end = (void *)(pprotect->address + pprotect->length);
 		proc_mprotect(p, addr, end, pprotect->newprot);
+		rpc_send_status(fd, RPC_SUCCESS);
 	} else {
 		rpc_send_status(fd, RPC_NO_PROC);
 		r = 1;
 		goto error;
 	}
-
+	
 error:
-
 	return r;
 }
 
