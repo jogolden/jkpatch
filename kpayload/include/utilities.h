@@ -15,9 +15,5 @@ void *alloc(uint32_t size);
 void dealloc(void *addr);
 void write_jmp(uint64_t address, uint64_t destination);
 
-// used both by fself and fpkg
-const struct sbl_map_list_entry *sceSblDriverFindMappedPageListByGpuVa(vm_offset_t gpu_va);
-vm_offset_t sceSblDriverGpuVaToCpuVa(vm_offset_t gpu_va, size_t *num_page_groups);
-struct sbl_key_rbtree_entry *sceSblKeymgrGetKey(unsigned int handle);
 
 #endif

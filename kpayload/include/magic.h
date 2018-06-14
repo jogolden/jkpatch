@@ -55,23 +55,15 @@
 #define __vm_map_unlock 						0x19F060
 #define __proc_rwmem							0x30D150
 
-#define __sceSblAuthMgrIsLoadable2				0x625C50
-#define __sceSblAuthMgrVerifyHeader				0x625CB0
-#define __sceSblAuthMgrGetSelfInfo				0x626490
-#define __sceSblAuthMgrSmStart					0x622020
-#define __sceSblKeymgrSmCallfunc				0x60E680
-#define __sceSblPfsKeymgrGenEKpfsForGDGPAC		0x60F000
-#define __sceSblPfsSetKey						0x606E00
-#define __sceSblPfsClearKey						0x606F80
-#define __sceSblServiceMailbox					0x6146C0
-#define __sceSblServiceCrypt					0x60C880
-#define __sceSblServiceCryptAsync				0x60CA10
-#define __AesCbcCfb128Encrypt					0x17A4C0
-#define __AesCbcCfb128Decrypt					0x17A6F0
-#define __Sha256Hash							0x2D5B80
-#define __Sha256Hmac							0x2D5C50
-#define __RsaesPkcs1v15Enc2048					0x4667D0
-#define __RsaesPkcs1v15Dec2048CRT				0x3EF200
+//net.c
+#define __sys_socket							0x318EE0
+#define __sys_bind								0x319820
+#define __sys_listen							0x319A60
+#define __sys_accept							0x31A170
+#define __sys_read								0x152AB0
+#define __sys_write								0x152FC0
+#define __sys_setsockopt						0x31B750
+#define __sys_close								0xC0EB0
 
 
 #define __disable_console_output                0x19ECEB0
@@ -80,7 +72,3 @@
 #define __prison0                               0x10986a0 	
 #define __rootvnode                             0x22c1a70 	
 #define __allproc								0x2382FF8
-#define __fpu_kern_ctx							0x2720840
-#define __mini_syscore_self_binary 				0x14C9D48
-#define __sbl_driver_mapped_pages  				0x271E208
-#define __sbl_keymgr_key_rbtree					0x2744558

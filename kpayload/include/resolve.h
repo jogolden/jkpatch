@@ -10,10 +10,7 @@
 
 // data
 void *M_TEMP;
-const struct sbl_map_list_entry **sbl_driver_mapped_pages;
-const uint8_t *mini_syscore_self_binary;
-struct sbl_key_rbtree_entry **sbl_keymgr_key_rbtree;
-void *fpu_kern_ctx;
+
 
 // freebsd/common
 int (*printf)(const char *fmt, ...);
@@ -63,26 +60,6 @@ void (*vm_map_unlock)(struct vm_map * map);
 int (*vm_map_delete)(struct vm_map * map, uint64_t start, uint64_t end);
 int (*vm_map_protect)(struct vm_map * map, uint64_t start, uint64_t end, int new_prot, uint64_t set_max);
 
-// sce
-int (*sceSblServiceMailbox)(unsigned long service_id, uint8_t request[SBL_MSG_SERVICE_MAILBOX_MAX_SIZE], void *response);
-int (*sceSblAuthMgrGetSelfInfo)(struct self_context *ctx, struct self_ex_info **info);
-void *(*sceSblAuthMgrSmStart)(void **);
-int (*sceSblAuthMgrIsLoadable2)(struct self_context *ctx, struct self_auth_info *old_auth_info, int path_id, struct self_auth_info *new_auth_info);
-int (*sceSblAuthMgrVerifyHeader)(struct self_context *ctx);
-int (*sceSblKeymgrSmCallfunc)(union keymgr_payload *payload);
-int (*sceSblPfsKeymgrGenEKpfsForGDGPAC)(struct pfs_key_blob *key_blob);
-int (*sceSblPfsSetKey)(uint32_t *ekh, uint32_t *skh, uint8_t *key, uint8_t *iv, int type, int unused, uint8_t is_disc);
-int (*sceSblPfsClearKey)(uint32_t ekh, uint32_t skh);
-int (*sceSblServiceCrypt)(struct ccp_req *request);
-int (*sceSblServiceCryptAsync)(struct ccp_req *request);
-
-// crypto
-int (*AesCbcCfb128Encrypt)(uint8_t *out, const uint8_t *in, size_t data_size, const uint8_t *key, int key_size, uint8_t *iv);
-int (*AesCbcCfb128Decrypt)(uint8_t *out, const uint8_t *in, size_t data_size, const uint8_t *key, int key_size, uint8_t *iv);
-void (*Sha256Hash)(uint8_t hash[0x20], const uint8_t *data, size_t data_size);
-void (*Sha256Hmac)(uint8_t hash[0x20], const uint8_t *data, size_t data_size, const uint8_t *key, int key_size);
-int (*RsaesPkcs1v15Enc2048)(struct rsa_buffer *out, struct rsa_buffer *in, struct rsa_key *key);
-int (*RsaesPkcs1v15Dec2048CRT)(struct rsa_buffer *out, struct rsa_buffer *in, struct rsa_key *key);
 
 void resolve(uint64_t kernbase);
 
