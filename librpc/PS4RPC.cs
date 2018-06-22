@@ -178,43 +178,44 @@ namespace librpc
             {
                 byte[] bytes = null;
 
-                // todo: clean up and find better way
-                if (field.GetType() == typeof(char))
-                {
-                    bytes = BitConverter.GetBytes((char)field);
-                }
-                else if (field.GetType() == typeof(byte))
-                {
-                    bytes = BitConverter.GetBytes((byte)field);
-                }
-                else if (field.GetType() == typeof(short))
-                {
-                    bytes = BitConverter.GetBytes((short)field);
-                }
-                else if (field.GetType() == typeof(ushort))
-                {
-                    bytes = BitConverter.GetBytes((ushort)field);
-                }
-                else if (field.GetType() == typeof(int))
-                {
-                    bytes = BitConverter.GetBytes((int)field);
-                }
-                else if (field.GetType() == typeof(uint))
-                {
-                    bytes = BitConverter.GetBytes((uint)field);
-                }
-                else if (field.GetType() == typeof(long))
-                {
-                    bytes = BitConverter.GetBytes((long)field);
-                }
-                else if (field.GetType() == typeof(ulong))
-                {
-                    bytes = BitConverter.GetBytes((ulong)field);
-                }
-                else if (field.GetType() == typeof(byte[]))
-                {
-                    bytes = (byte[])field;
-                }
+				switch (field)
+				{
+					case char _:
+						bytes = BitConverter.GetBytes((char)field);
+						break;
+	
+					case byte _:
+						bytes = BitConverter.GetBytes((byte)field);
+						break;
+	
+					case short _:
+						bytes = BitConverter.GetBytes((short)field);
+						break;
+	
+					case ushort _:
+						bytes = BitConverter.GetBytes((ushort)field);
+						break;
+	
+					case int _:
+						bytes = BitConverter.GetBytes((int)field);
+						break;
+	
+					case uint _:
+						bytes = BitConverter.GetBytes((uint)field);
+						break;
+	
+					case long _:
+						bytes = BitConverter.GetBytes((long)field);
+						break;
+	
+					case ulong _:
+						bytes = BitConverter.GetBytes((ulong)field);
+						break;
+	
+					case byte[] _:
+						bytes = (byte[])field;
+						break;
+				}
 
                 rs.Write(bytes, 0, bytes.Length);
             }
@@ -555,64 +556,75 @@ namespace librpc
             {
                 byte[] bytes = new byte[8];
 
-                if (arg.GetType() == typeof(char))
-                {
-                    byte[] tmp = BitConverter.GetBytes((char)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(char));
+				switch (arg)
+				{
+				    case char _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((char) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(char));
 
-                    byte[] pad = new byte[sizeof(ulong) - sizeof(char)];
-                    Buffer.BlockCopy(pad, 0, bytes, sizeof(char), pad.Length);
-                }
-                else if (arg.GetType() == typeof(byte))
-                {
-                    byte[] tmp = BitConverter.GetBytes((byte)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(byte));
+				        byte[] pad = new byte[sizeof(ulong) - sizeof(char)];
+				        Buffer.BlockCopy(pad, 0, bytes, sizeof(char), pad.Length);
+				        break;
+				    }
+				    case byte _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((byte) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(byte));
 
-                    byte[] pad = new byte[sizeof(ulong) - sizeof(byte)];
-                    Buffer.BlockCopy(pad, 0, bytes, sizeof(byte), pad.Length);
-                }
-                else if (arg.GetType() == typeof(short))
-                {
-                    byte[] tmp = BitConverter.GetBytes((short)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(short));
+				        byte[] pad = new byte[sizeof(ulong) - sizeof(byte)];
+				        Buffer.BlockCopy(pad, 0, bytes, sizeof(byte), pad.Length);
+				        break;
+				    }
+				    case short _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((short) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(short));
 
-                    byte[] pad = new byte[sizeof(ulong) - sizeof(short)];
-                    Buffer.BlockCopy(pad, 0, bytes, sizeof(short), pad.Length);
-                }
-                else if (arg.GetType() == typeof(ushort))
-                {
-                    byte[] tmp = BitConverter.GetBytes((ushort)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(ushort));
+				        byte[] pad = new byte[sizeof(ulong) - sizeof(short)];
+				        Buffer.BlockCopy(pad, 0, bytes, sizeof(short), pad.Length);
+				        break;
+				    }
+				    case ushort _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((ushort) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(ushort));
 
-                    byte[] pad = new byte[sizeof(ulong) - sizeof(ushort)];
-                    Buffer.BlockCopy(pad, 0, bytes, sizeof(ushort), pad.Length);
-                }
-                else if (arg.GetType() == typeof(int))
-                {
-                    byte[] tmp = BitConverter.GetBytes((int)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(int));
+				        byte[] pad = new byte[sizeof(ulong) - sizeof(ushort)];
+				        Buffer.BlockCopy(pad, 0, bytes, sizeof(ushort), pad.Length);
+				        break;
+				    }
+				    case int _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((int) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(int));
 
-                    byte[] pad = new byte[sizeof(ulong) - sizeof(int)];
-                    Buffer.BlockCopy(pad, 0, bytes, sizeof(int), pad.Length);
-                }
-                else if (arg.GetType() == typeof(uint))
-                {
-                    byte[] tmp = BitConverter.GetBytes((uint)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(uint));
+				        byte[] pad = new byte[sizeof(ulong) - sizeof(int)];
+				        Buffer.BlockCopy(pad, 0, bytes, sizeof(int), pad.Length);
+				        break;
+				    }
+				    case uint _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((uint) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(uint));
 
-                    byte[] pad = new byte[sizeof(ulong) - sizeof(uint)];
-                    Buffer.BlockCopy(pad, 0, bytes, sizeof(uint), pad.Length);
-                }
-                else if (arg.GetType() == typeof(long))
-                {
-                    byte[] tmp = BitConverter.GetBytes((long)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(long));
-                }
-                else if (arg.GetType() == typeof(ulong))
-                {
-                    byte[] tmp = BitConverter.GetBytes((ulong)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(ulong));
-                }
+				        byte[] pad = new byte[sizeof(ulong) - sizeof(uint)];
+				        Buffer.BlockCopy(pad, 0, bytes, sizeof(uint), pad.Length);
+				        break;
+				    }
+				    case long _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((long) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(long));
+				        break;
+				    }
+				    case ulong _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((ulong) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(ulong));
+				        break;
+				    }
+				}
 
                 rs.Write(bytes, 0, bytes.Length);
                 num++;
