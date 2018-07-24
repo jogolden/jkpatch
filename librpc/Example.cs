@@ -117,11 +117,11 @@ namespace Example
             //ProcessInfo pi = ps4.GetProcessInfo(p.pid);
             MemoryEntry vme = pi.FindEntry("libSceLibcInternal.sprx");
 
-            // dissasemble libSceLibcInternal.sprx to get these offsets (4.05)
-            int sys_getpid = (int)ps4.Call(p.pid, stub, vme.start + 0xE0);
+            // dissasemble libSceLibcInternal.sprx to get these offsets (5.05)
+            int sys_getpid = (int)ps4.Call(p.pid, stub, vme.start + 0xC8);
             Console.WriteLine("sys_getpid: " + sys_getpid);
 
-            int time = (int)ps4.Call(p.pid, stub, vme.start + 0x4430, 0);
+            int time = (int)ps4.Call(p.pid, stub, vme.start + 0x8A650, 0);
             Console.WriteLine("time: " + time);
 
             ps4.Disconnect();

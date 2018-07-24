@@ -8,7 +8,7 @@
 
 int net_errno;
 
-// specific to 4.55, may change in other updates
+// specific to 5.05, may change in other updates
 // the kernel functions copyin and copyout check if the src/dst address is in kernel space
 void net_disable_copy_checks() {
 	uint64_t kernbase = getkernbase();

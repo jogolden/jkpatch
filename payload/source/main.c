@@ -42,21 +42,6 @@ void debug_patches(struct thread *td, uint64_t kernbase) {
 	*(uint8_t *)(kernbase + 0x1CD06AA) |= 0x1;
 	*(uint8_t *)(kernbase + 0x1CD06C8) |= 0x1;
 
-	// registry patches for extra debug information
-	// fucks with the whole system, patches sceRegMgrGetInt
-	// 405
-	//*(uint32_t *)(kernbase + 0x4CECB7) = 0;
-	//*(uint32_t *)(kernbase + 0x4CFB9B) = 0;
-	// 455
-	//*(uint32_t *)(kernbase + 0x4D70F7) = 0;
-	//*(uint32_t *)(kernbase + 0x4D7F81) = 0;
-
-	// flatz RSA check patch
-	*(uint32_t *)(kernbase + 0x6A2700) = 0x90C3C031;
-
-	// flatz enable debug rifs
-	*(uint32_t *)(kernbase + 0x64B2B0) = 0x90C301B0;
-	*(uint32_t *)(kernbase + 0x64B2D0) = 0x90C301B0;
 
 	// disable sysdump_perform_dump_on_fatal_trap
 	// will continue execution and give more information on crash, such as rip

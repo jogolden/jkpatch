@@ -12,20 +12,17 @@ namespace librpc
 {
     public class PS4RPC
     {
-        private Socket sock = null;
-        private IPEndPoint enp = null;
-        private bool connected = false;
+        private Socket sock;
+        private IPEndPoint enp;
         public bool IsConnected
         {
-            get
-            {
-                return connected;
-            }
+            get;
+			private set;
         }
 
-        private static int RPC_PORT = 733;
-        private static uint RPC_PACKET_MAGIC = 0xBDAABBCC;
-        private static int RPC_MAX_DATA_LEN = 8192;
+        private const int RPC_PORT = 733;
+        private const uint RPC_PACKET_MAGIC = 0xBDAABBCC;
+        private const int RPC_MAX_DATA_LEN = 8192;
 
         /** commands **/
         private enum RPC_CMDS : uint
@@ -45,20 +42,20 @@ namespace librpc
         };
 
         /** packet sizes **/
-        private static int RPC_PACKET_SIZE = 12;
-        private static int RPC_PROC_READ_SIZE = 16;
-        private static int RPC_PROC_WRITE_SIZE = 16;
-        private static int RPC_PROC_LIST_SIZE = 36;
-        private static int RPC_PROC_INFO1_SIZE = 4;
-        private static int RPC_PROC_INFO2_SIZE = 60;
-        private static int RPC_PROC_INSTALL1_SIZE = 4;
-        private static int RPC_PROC_INSTALL2_SIZE = 12;
-        private static int RPC_PROC_CALL1_SIZE = 68;
-        private static int RPC_PROC_CALL2_SIZE = 12;
-        private static int RPC_PROC_ELF_SIZE = 8;
-        private static int RPC_KERN_BASE_SIZE = 8;
-        private static int RPC_KERN_READ_SIZE = 12;
-        private static int RPC_KERN_WRITE_SIZE = 12;
+        private const int RPC_PACKET_SIZE = 12;
+        private const int RPC_PROC_READ_SIZE = 16;
+        private const int RPC_PROC_WRITE_SIZE = 16;
+        private const int RPC_PROC_LIST_SIZE = 36;
+        private const int RPC_PROC_INFO1_SIZE = 4;
+        private const int RPC_PROC_INFO2_SIZE = 60;
+        private const int RPC_PROC_INSTALL1_SIZE = 4;
+        private const int RPC_PROC_INSTALL2_SIZE = 12;
+        private const int RPC_PROC_CALL1_SIZE = 68;
+        private const int RPC_PROC_CALL2_SIZE = 12;
+        private const int RPC_PROC_ELF_SIZE = 8;
+        private const int RPC_KERN_BASE_SIZE = 8;
+        private const int RPC_KERN_READ_SIZE = 12;
+        private const int RPC_KERN_WRITE_SIZE = 12;
 
         /** status **/
         private enum RPC_STATUS : uint
@@ -90,7 +87,9 @@ namespace librpc
             { RPC_STATUS.RPC_CALL_ERROR, "could not call address" },
             { RPC_STATUS.RPC_ELF_ERROR, "could not map elf" }
         };
-
+        private const string NotConnectedErrorMessage = "librpc: not connected";
+        private const string TooManyArgumentsErrorMessage = "librpc: too many call arguments";
+		
         /// <summary>
         /// Initializes PS4RPC class
         /// </summary>
@@ -98,9 +97,7 @@ namespace librpc
         public PS4RPC(IPAddress addr)
         {
             enp = new IPEndPoint(addr, RPC_PORT);
-            sock = new Socket(enp.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            sock.NoDelay = true;
-            sock.ReceiveTimeout = sock.SendTimeout = 5 * 1000;
+            sock = new Socket(enp.AddressFamily, SocketType.Stream, ProtocolType.Tcp){NoDelay = true, ReceiveTimeout = 5* 1000, SendTimeout = 5 * 1000};
         }
 
         /// <summary>
@@ -109,7 +106,7 @@ namespace librpc
         /// <param name="ip">PlayStation 4 ip address</param>
         public PS4RPC(string ip)
         {
-            IPAddress addr = null;
+            IPAddress addr;
             try
             {
                 addr = IPAddress.Parse(ip);
@@ -120,9 +117,7 @@ namespace librpc
             }
 
             enp = new IPEndPoint(addr, RPC_PORT);
-            sock = new Socket(enp.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            sock.NoDelay = true;
-            sock.ReceiveTimeout = sock.SendTimeout = 5 * 1000;
+            sock = new Socket(enp.AddressFamily, SocketType.Stream, ProtocolType.Tcp){NoDelay = true, ReceiveTimeout = 5* 1000, SendTimeout = 5 * 1000};
         }
 
         private static string GetNullTermString(byte[] data, int offset)
@@ -154,10 +149,10 @@ namespace librpc
         /// </summary>
         public void Connect()
         {
-            if (!connected)
+            if (!IsConnected)
             {
                 sock.Connect(enp);
-                connected = true;
+                IsConnected = true;
             }
         }
 
@@ -168,7 +163,7 @@ namespace librpc
         {
             SendCMDPacket(RPC_CMDS.RPC_END, 0);
             sock.Dispose();
-            connected = false;
+            IsConnected = false;
         }
 
         private void SendPacketData(int length, params object[] fields)
@@ -178,45 +173,46 @@ namespace librpc
             {
                 byte[] bytes = null;
 
-                // todo: clean up and find better way
-                if (field.GetType() == typeof(char))
-                {
-                    bytes = BitConverter.GetBytes((char)field);
-                }
-                else if (field.GetType() == typeof(byte))
-                {
-                    bytes = BitConverter.GetBytes((byte)field);
-                }
-                else if (field.GetType() == typeof(short))
-                {
-                    bytes = BitConverter.GetBytes((short)field);
-                }
-                else if (field.GetType() == typeof(ushort))
-                {
-                    bytes = BitConverter.GetBytes((ushort)field);
-                }
-                else if (field.GetType() == typeof(int))
-                {
-                    bytes = BitConverter.GetBytes((int)field);
-                }
-                else if (field.GetType() == typeof(uint))
-                {
-                    bytes = BitConverter.GetBytes((uint)field);
-                }
-                else if (field.GetType() == typeof(long))
-                {
-                    bytes = BitConverter.GetBytes((long)field);
-                }
-                else if (field.GetType() == typeof(ulong))
-                {
-                    bytes = BitConverter.GetBytes((ulong)field);
-                }
-                else if (field.GetType() == typeof(byte[]))
-                {
-                    bytes = (byte[])field;
-                }
+				switch (field)
+				{
+					case char _:
+						bytes = BitConverter.GetBytes((char)field);
+						break;
+	
+					case byte _:
+						bytes = BitConverter.GetBytes((byte)field);
+						break;
+	
+					case short _:
+						bytes = BitConverter.GetBytes((short)field);
+						break;
+	
+					case ushort _:
+						bytes = BitConverter.GetBytes((ushort)field);
+						break;
+	
+					case int _:
+						bytes = BitConverter.GetBytes((int)field);
+						break;
+	
+					case uint _:
+						bytes = BitConverter.GetBytes((uint)field);
+						break;
+	
+					case long _:
+						bytes = BitConverter.GetBytes((long)field);
+						break;
+	
+					case ulong _:
+						bytes = BitConverter.GetBytes((ulong)field);
+						break;
+	
+					case byte[] _:
+						bytes = (byte[])field;
+						break;
+				}
 
-                rs.Write(bytes, 0, bytes.Length);
+               if (bytes != null) rs.Write(bytes, 0, bytes.Length);
             }
 
             SendData(rs.ToArray(), length);
@@ -240,9 +236,8 @@ namespace librpc
             RPC_STATUS status = ReceiveRPCStatus();
             if (IsFatalStatus(status))
             {
-                string value = "";
-                StatusMessages.TryGetValue(status, out value);
-                throw new Exception("librpc: " + value);
+                StatusMessages.TryGetValue(status, out string value);
+                throw new Exception($"librpc: {value}");
             }
 
             return status;
@@ -252,9 +247,9 @@ namespace librpc
         {
             int left = length;
             int offset = 0;
-            int sent = 0;
+			int sent;
             while (left > 0)
-            {
+            {				
                 if (left > RPC_MAX_DATA_LEN)
                 {
                     byte[] bytes = SubArray(data, offset, RPC_MAX_DATA_LEN);
@@ -277,11 +272,10 @@ namespace librpc
             MemoryStream s = new MemoryStream();
 
             int left = length;
-            int recv = 0;
             while (left > 0)
             {
                 byte[] b = new byte[RPC_MAX_DATA_LEN];
-                recv = sock.Receive(b, RPC_MAX_DATA_LEN, SocketFlags.None);
+                int recv = sock.Receive(b, RPC_MAX_DATA_LEN, SocketFlags.None);
                 s.Write(b, 0, recv);
                 left -= recv;
             }
@@ -302,9 +296,9 @@ namespace librpc
         /// <returns></returns>
         public byte[] ReadMemory(int pid, ulong address, int length)
         {
-            if (!connected)
+            if (!IsConnected)
             {
-                throw new Exception("librpc: not connected");
+                throw new Exception(NotConnectedErrorMessage);
             }
 
             SendCMDPacket(RPC_CMDS.RPC_PROC_READ, RPC_PROC_READ_SIZE);
@@ -321,9 +315,9 @@ namespace librpc
         /// <param name="data">Data</param>
         public void WriteMemory(int pid, ulong address, byte[] data)
         {
-            if (!connected)
+            if (!IsConnected)
             {
-                throw new Exception("librpc: not connected");
+                throw new Exception(NotConnectedErrorMessage);
             }
 
             if (data.Length > RPC_MAX_DATA_LEN)
@@ -339,7 +333,7 @@ namespace librpc
 
                 // call WriteMemory again with rest of it
                 int nextlength = data.Length - RPC_MAX_DATA_LEN;
-                ulong nextaddr = address + (ulong)RPC_MAX_DATA_LEN;
+                ulong nextaddr = address + RPC_MAX_DATA_LEN;
                 byte[] nextdata = SubArray(data, RPC_MAX_DATA_LEN, nextlength);
                 WriteMemory(pid, nextaddr, nextdata);
             }
@@ -359,9 +353,9 @@ namespace librpc
         /// <returns></returns>
         public ulong KernelBase()
         {
-            if (!connected)
+            if (!IsConnected)
             {
-                throw new Exception("librpc: not connected");
+                throw new Exception(NotConnectedErrorMessage);
             }
 
             SendCMDPacket(RPC_CMDS.RPC_KERN_BASE, 0);
@@ -378,9 +372,9 @@ namespace librpc
         /// <returns></returns>
         public byte[] KernelReadMemory(ulong address, int length)
         {
-            if (!connected)
+            if (!IsConnected)
             {
-                throw new Exception("librpc: not connected");
+                throw new Exception(NotConnectedErrorMessage);
             }
 
             SendCMDPacket(RPC_CMDS.RPC_KERN_READ, RPC_KERN_READ_SIZE);
@@ -396,9 +390,9 @@ namespace librpc
         /// <param name="data">Data</param>
         public void KernelWriteMemory(ulong address, byte[] data)
         {
-            if (!connected)
+            if (!IsConnected)
             {
-                throw new Exception("librpc: not connected");
+                throw new Exception(NotConnectedErrorMessage);
             }
 
             if (data.Length > RPC_MAX_DATA_LEN)
@@ -414,7 +408,7 @@ namespace librpc
 
                 // call WriteMemory again with rest of it
                 int nextlength = data.Length - RPC_MAX_DATA_LEN;
-                ulong nextaddr = address + (ulong)RPC_MAX_DATA_LEN;
+                ulong nextaddr = address + RPC_MAX_DATA_LEN;
                 byte[] nextdata = SubArray(data, RPC_MAX_DATA_LEN, nextlength);
                 KernelWriteMemory(nextaddr, nextdata);
             }
@@ -434,9 +428,9 @@ namespace librpc
         /// <returns></returns>
         public ProcessList GetProcessList()
         {
-            if (!connected)
+            if (!IsConnected)
             {
-                throw new Exception("librpc: not connected");
+                throw new Exception(NotConnectedErrorMessage);
             }
 
             SendCMDPacket(RPC_CMDS.RPC_PROC_LIST, 0);
@@ -470,9 +464,9 @@ namespace librpc
         /// <returns></returns>
         public ProcessInfo GetProcessInfo(int pid)
         {
-            if (!connected)
+            if (!IsConnected)
             {
-                throw new Exception("librpc: not connected");
+                throw new Exception(NotConnectedErrorMessage);
             }
 
             SendCMDPacket(RPC_CMDS.RPC_PROC_INFO, RPC_PROC_INFO1_SIZE);
@@ -497,13 +491,14 @@ namespace librpc
             for (int i = 0; i < number; i++)
             {
                 int offset = i * RPC_PROC_INFO2_SIZE;
-                entries[i] = new MemoryEntry();
-
-                entries[i].name = GetNullTermString(data, offset);
-                entries[i].start = BitConverter.ToUInt64(data, offset + 32);
-                entries[i].end = BitConverter.ToUInt64(data, offset + 40);
-                entries[i].offset = BitConverter.ToUInt64(data, offset + 48);
-                entries[i].prot = BitConverter.ToUInt32(data, offset + 56);
+                entries[i] = new MemoryEntry
+				{
+                    name = GetNullTermString(data, offset),
+                    start = BitConverter.ToUInt64(data, offset + 32),
+                    end = BitConverter.ToUInt64(data, offset + 40),
+                    offset = BitConverter.ToUInt64(data, offset + 48),
+                    prot = BitConverter.ToUInt32(data, offset + 56)                
+				};
             }
 
             return new ProcessInfo(pid, entries);
@@ -516,9 +511,9 @@ namespace librpc
         /// <returns></returns>
         public ulong InstallRPC(int pid)
         {
-            if (!connected)
+            if (!IsConnected)
             {
-                throw new Exception("librpc: not connected");
+                throw new Exception(NotConnectedErrorMessage);
             }
 
             SendCMDPacket(RPC_CMDS.RPC_PROC_INTALL, RPC_PROC_INSTALL1_SIZE);
@@ -538,9 +533,9 @@ namespace librpc
         /// <returns></returns>
         public ulong Call(int pid, ulong rpcstub, ulong address, params object[] args)
         {
-            if (!connected)
+            if (!IsConnected)
             {
-                throw new Exception("librpc: not connected");
+                throw new Exception(NotConnectedErrorMessage);
             }
 
             SendCMDPacket(RPC_CMDS.RPC_PROC_CALL, RPC_PROC_CALL1_SIZE);
@@ -555,64 +550,75 @@ namespace librpc
             {
                 byte[] bytes = new byte[8];
 
-                if (arg.GetType() == typeof(char))
-                {
-                    byte[] tmp = BitConverter.GetBytes((char)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(char));
+				switch (arg)
+				{
+				    case char _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((char) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(char));
 
-                    byte[] pad = new byte[sizeof(ulong) - sizeof(char)];
-                    Buffer.BlockCopy(pad, 0, bytes, sizeof(char), pad.Length);
-                }
-                else if (arg.GetType() == typeof(byte))
-                {
-                    byte[] tmp = BitConverter.GetBytes((byte)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(byte));
+				        byte[] pad = new byte[sizeof(ulong) - sizeof(char)];
+				        Buffer.BlockCopy(pad, 0, bytes, sizeof(char), pad.Length);
+				        break;
+				    }
+				    case byte _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((byte) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(byte));
 
-                    byte[] pad = new byte[sizeof(ulong) - sizeof(byte)];
-                    Buffer.BlockCopy(pad, 0, bytes, sizeof(byte), pad.Length);
-                }
-                else if (arg.GetType() == typeof(short))
-                {
-                    byte[] tmp = BitConverter.GetBytes((short)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(short));
+				        byte[] pad = new byte[sizeof(ulong) - sizeof(byte)];
+				        Buffer.BlockCopy(pad, 0, bytes, sizeof(byte), pad.Length);
+				        break;
+				    }
+				    case short _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((short) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(short));
 
-                    byte[] pad = new byte[sizeof(ulong) - sizeof(short)];
-                    Buffer.BlockCopy(pad, 0, bytes, sizeof(short), pad.Length);
-                }
-                else if (arg.GetType() == typeof(ushort))
-                {
-                    byte[] tmp = BitConverter.GetBytes((ushort)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(ushort));
+				        byte[] pad = new byte[sizeof(ulong) - sizeof(short)];
+				        Buffer.BlockCopy(pad, 0, bytes, sizeof(short), pad.Length);
+				        break;
+				    }
+				    case ushort _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((ushort) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(ushort));
 
-                    byte[] pad = new byte[sizeof(ulong) - sizeof(ushort)];
-                    Buffer.BlockCopy(pad, 0, bytes, sizeof(ushort), pad.Length);
-                }
-                else if (arg.GetType() == typeof(int))
-                {
-                    byte[] tmp = BitConverter.GetBytes((int)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(int));
+				        byte[] pad = new byte[sizeof(ulong) - sizeof(ushort)];
+				        Buffer.BlockCopy(pad, 0, bytes, sizeof(ushort), pad.Length);
+				        break;
+				    }
+				    case int _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((int) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(int));
 
-                    byte[] pad = new byte[sizeof(ulong) - sizeof(int)];
-                    Buffer.BlockCopy(pad, 0, bytes, sizeof(int), pad.Length);
-                }
-                else if (arg.GetType() == typeof(uint))
-                {
-                    byte[] tmp = BitConverter.GetBytes((uint)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(uint));
+				        byte[] pad = new byte[sizeof(ulong) - sizeof(int)];
+				        Buffer.BlockCopy(pad, 0, bytes, sizeof(int), pad.Length);
+				        break;
+				    }
+				    case uint _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((uint) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(uint));
 
-                    byte[] pad = new byte[sizeof(ulong) - sizeof(uint)];
-                    Buffer.BlockCopy(pad, 0, bytes, sizeof(uint), pad.Length);
-                }
-                else if (arg.GetType() == typeof(long))
-                {
-                    byte[] tmp = BitConverter.GetBytes((long)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(long));
-                }
-                else if (arg.GetType() == typeof(ulong))
-                {
-                    byte[] tmp = BitConverter.GetBytes((ulong)arg);
-                    Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(ulong));
-                }
+				        byte[] pad = new byte[sizeof(ulong) - sizeof(uint)];
+				        Buffer.BlockCopy(pad, 0, bytes, sizeof(uint), pad.Length);
+				        break;
+				    }
+				    case long _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((long) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(long));
+				        break;
+				    }
+				    case ulong _:
+				    {
+				        byte[] tmp = BitConverter.GetBytes((ulong) arg);
+				        Buffer.BlockCopy(tmp, 0, bytes, 0, sizeof(ulong));
+				        break;
+				    }
+				}
 
                 rs.Write(bytes, 0, bytes.Length);
                 num++;
@@ -620,9 +626,9 @@ namespace librpc
 
             if (num > 6)
             {
-                throw new Exception("librpc: too many call arguments");
+                throw new Exception(TooManyArgumentsErrorMessage);
             }
-            else if (num < 6)
+            if (num < 6)
             {
                 for (int i = 0; i < (6 - num); i++)
                 {
@@ -667,80 +673,80 @@ namespace librpc
         /// </summary>
         public void Reboot()
         {
-            if (!connected)
+            if (!IsConnected)
             {
-                throw new Exception("librpc: not connected");
+                throw new Exception(NotConnectedErrorMessage);
             }
 
             SendCMDPacket(RPC_CMDS.RPC_REBOOT, 0);
             sock.Dispose();
-            connected = false;
+            IsConnected = false;
         }
 
         /** read wrappers **/
-        public Byte ReadByte(int pid, ulong address)
+        public byte ReadByte(int pid, ulong address)
         {
             return ReadMemory(pid, address, sizeof(Byte))[0];
         }
-        public Char ReadChar(int pid, ulong address)
+        public char ReadChar(int pid, ulong address)
         {
-            return BitConverter.ToChar(ReadMemory(pid, address, sizeof(Char)), 0);
+            return BitConverter.ToChar(ReadMemory(pid, address, sizeof(char)), 0);
         }
-        public Int16 ReadInt16(int pid, ulong address)
+        public short ReadInt16(int pid, ulong address)
         {
-            return BitConverter.ToInt16(ReadMemory(pid, address, sizeof(Int16)), 0);
+            return BitConverter.ToInt16(ReadMemory(pid, address, sizeof(short)), 0);
         }
-        public UInt16 ReadUInt16(int pid, ulong address)
+        public ushort ReadUInt16(int pid, ulong address)
         {
-            return BitConverter.ToUInt16(ReadMemory(pid, address, sizeof(UInt16)), 0);
+            return BitConverter.ToUInt16(ReadMemory(pid, address, sizeof(ushort)), 0);
         }
-        public Int32 ReadInt32(int pid, ulong address)
+        public int ReadInt32(int pid, ulong address)
         {
-            return BitConverter.ToInt32(ReadMemory(pid, address, sizeof(Int32)), 0);
+            return BitConverter.ToInt32(ReadMemory(pid, address, sizeof(int)), 0);
         }
-        public UInt32 ReadUInt32(int pid, ulong address)
+        public uint ReadUInt32(int pid, ulong address)
         {
-            return BitConverter.ToUInt32(ReadMemory(pid, address, sizeof(UInt32)), 0);
+            return BitConverter.ToUInt32(ReadMemory(pid, address, sizeof(uint)), 0);
         }
-        public Int64 ReadInt64(int pid, ulong address)
+        public long ReadInt64(int pid, ulong address)
         {
-            return BitConverter.ToInt64(ReadMemory(pid, address, sizeof(Int64)), 0);
+            return BitConverter.ToInt64(ReadMemory(pid, address, sizeof(long)), 0);
         }
-        public UInt64 ReadUInt64(int pid, ulong address)
+        public ulong ReadUInt64(int pid, ulong address)
         {
-            return BitConverter.ToUInt64(ReadMemory(pid, address, sizeof(UInt64)), 0);
+            return BitConverter.ToUInt64(ReadMemory(pid, address, sizeof(ulong)), 0);
         }
 
         /** write wrappers **/
-        public void WriteByte(int pid, ulong address, Byte value)
+        public void WriteByte(int pid, ulong address, byte value)
         {
             WriteMemory(pid, address, new byte[] { value });
         }
-        public void WriteChar(int pid, ulong address, Char value)
+        public void WriteChar(int pid, ulong address, char value)
         {
             WriteMemory(pid, address, BitConverter.GetBytes(value));
         }
-        public void WriteInt16(int pid, ulong address, Int16 value)
+        public void WriteInt16(int pid, ulong address, short value)
         {
             WriteMemory(pid, address, BitConverter.GetBytes(value));
         }
-        public void WriteUInt16(int pid, ulong address, UInt16 value)
+        public void WriteUInt16(int pid, ulong address, ushort value)
         {
             WriteMemory(pid, address, BitConverter.GetBytes(value));
         }
-        public void WriteInt32(int pid, ulong address, Int32 value)
+        public void WriteInt32(int pid, ulong address, int value)
         {
             WriteMemory(pid, address, BitConverter.GetBytes(value));
         }
-        public void WriteUInt32(int pid, ulong address, UInt32 value)
+        public void WriteUInt32(int pid, ulong address, uint value)
         {
             WriteMemory(pid, address, BitConverter.GetBytes(value));
         }
-        public void WriteInt64(int pid, ulong address, Int64 value)
+        public void WriteInt64(int pid, ulong address, long value)
         {
             WriteMemory(pid, address, BitConverter.GetBytes(value));
         }
-        public void WriteUInt64(int pid, ulong address, UInt64 value)
+        public void WriteUInt64(int pid, ulong address, ulong value)
         {
             WriteMemory(pid, address, BitConverter.GetBytes(value));
         }
