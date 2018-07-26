@@ -4,6 +4,9 @@
 #include "jkpatch.h"
 #include "install.h"
 
+extern uint8_t kpayload[];
+extern int32_t kpayload_size;
+
 // perfect for putty
 void ascii_art(void *_printf) {
 	printf("\n\n");
@@ -79,60 +82,6 @@ void scesbl_patches(struct thread *td, uint64_t kernbase) {
 	//*(uint8_t *)(kernbase + 0x36057B) = 0;
 }
 
-int receive_payload(void **payload, size_t *psize) {
-	struct sockaddr_in server;
-	server.sin_len = sizeof(server);
-	server.sin_family = AF_INET;
-	server.sin_addr.s_addr = IN_ADDR_ANY;
-	server.sin_port = sceNetHtons(9023);
-	memset(server.sin_zero, 0, sizeof(server.sin_zero));
-
-	int servsock = sceNetSocket("jkpatch", AF_INET, SOCK_STREAM, 0);
-
-	sceNetBind(servsock, (struct sockaddr *)&server, sizeof(server));
-
-	sceNetListen(servsock, 128);
-
-	int client = sceNetAccept(servsock, NULL, NULL);
-	if (client < 0) {
-		return 1;
-	}
-
-	void *data = (void *)malloc(4096);
-	int recvlen = 0;
-	int length = 0;
-
-	while (1) {
-		recvlen = sceNetRecv(client, data + length, 4096, 0);
-		length += recvlen;
-
-		if (recvlen) {
-			void *ndata = (void *)realloc(data, length + 4096);
-			if (ndata) {
-				data = ndata;
-			} else {
-				break;
-			}
-		} else {
-			break;
-		}
-	}
-
-	if (payload) {
-		*payload = data;
-	} else {
-		free(data);
-	}
-
-	if (psize) {
-		*psize = length;
-	}
-
-	sceNetSocketClose(servsock);
-
-	return 0;
-}
-
 struct jkuap {
 	uint64_t sycall;
 	void *payload;
@@ -189,13 +138,7 @@ int jkpatch(struct thread *td, struct jkuap *uap) {
 int _main(void) {
 	initKernel();
 	initLibc();
-	initNetwork();
-
-	size_t psize = 0;
-	void *payload = NULL;
-	receive_payload(&payload, &psize);
-
-	syscall(11, jkpatch, payload, psize);
+	syscall(11, jkpatch, kpayload, kpayload_size);
 
 	// this could race
 	/*if (payload) {
