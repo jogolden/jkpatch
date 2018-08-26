@@ -45,7 +45,7 @@ namespace librpc
         private const int RPC_PACKET_SIZE = 12;
         private const int RPC_PROC_READ_SIZE = 16;
         private const int RPC_PROC_WRITE_SIZE = 16;
-        private const int RPC_PROC_LIST_SIZE = 36;
+        private const int RPC_PROC_LIST_SIZE = 46;
         private const int RPC_PROC_INFO1_SIZE = 4;
         private const int RPC_PROC_INFO2_SIZE = 60;
         private const int RPC_PROC_INSTALL1_SIZE = 4;
@@ -452,9 +452,10 @@ namespace librpc
                 int offset = i * RPC_PROC_LIST_SIZE;
                 procnames[i] = GetNullTermString(data, offset);
                 pids[i] = BitConverter.ToInt32(data, offset + 32);
+                titleIds[i] = GetNullTermString(data, offset + 36);
             }
 
-            return new ProcessList(number, procnames, pids);
+            return new ProcessList(number, procnames, pids, titleIds);
         }
 
         /// <summary>

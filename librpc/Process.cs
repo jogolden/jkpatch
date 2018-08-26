@@ -7,17 +7,19 @@ namespace librpc
     {
         public string name;
         public int pid;
-
+		public string titleId;
+		
         /// <summary>
         /// Initializes Process class
         /// </summary>
         /// <param name="name">Process name</param>
         /// <param name="pid">Process ID</param>
         /// <returns></returns>
-        public Process(string name, int pid)
+        public Process(string name, int pid, string titleId)
         {
             this.name = name;
             this.pid = pid;
+            this.titleId = titleId;
         }
     }
 
@@ -32,12 +34,12 @@ namespace librpc
         /// <param name="names">Process names</param>
         /// <param name="pids">Process IDs</param>
         /// <returns></returns>
-        public ProcessList(int number, string[] names, int[] pids)
+        public ProcessList(int number, string[] names, int[] pids, string[] titleIds)
         {
             processes = new Process[number];
             for (int i = 0; i < number; i++)
             {
-                processes[i] = new Process(names[i], pids[i]);
+                processes[i] = new Process(names[i], pids[i], titleIds[i]);
             }
         }
 

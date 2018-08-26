@@ -86,9 +86,10 @@ struct rpc_proc_write {
 struct rpc_proc_list {
 	char name[32];
 	uint32_t pid;
+	char  titleId[10];
 } __attribute__((packed));
 
-#define RPC_PROC_LIST_SIZE 36
+#define RPC_PROC_LIST_SIZE 46
 
 struct rpc_proc_info1 {
 	uint32_t pid;
