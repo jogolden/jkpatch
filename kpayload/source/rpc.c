@@ -550,7 +550,7 @@ int rpc_handle_list(int fd, struct rpc_packet *packet) {
 	for (int i = 0; i < count; i++) {
 		memcpy(plist[i].name, p->p_comm, sizeof(plist[i].name));
 		plist[i].pid = p->pid;
-		plist[i].titleId = p->titleId;
+		memcpy(plist[i].titleId, p->titleId, sizeof(plist[i].titleId));
 
 		if (!(p = p->p_forw)) {
 			break;
