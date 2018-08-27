@@ -447,6 +447,7 @@ namespace librpc
             // parse data
             string[] procnames = new string[number];
             int[] pids = new int[number];
+			string[] titleIds = new string[number];
             for (int i = 0; i < number; i++)
             {
                 int offset = i * RPC_PROC_LIST_SIZE;
