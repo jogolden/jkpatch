@@ -40,8 +40,4 @@ You can read/write memory, call functions, read/write kernel memory, and even lo
 
 Thank you to ChendoChap, idc, zecoxao, hitodama, osdev.org, and anyone else I forgot!
 
-Join the PS4 Cheater discord chat! Help grow the game modding community... https://discord.gg/WXgmWFh
-
-Twitter: [@cloverleafswag3](https://twitter.com/cloverleafswag3) psxhax: [g991](https://www.psxhax.com/members/g991.473299/)
-
 **golden <3**
